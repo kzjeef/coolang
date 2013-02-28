@@ -7,11 +7,15 @@
  *  output, so headers and global definitions are placed here to be visible
  * to the code in the file.  Don't remove anything that was here initially
  */
+
+L			[a-zA-Z_]
+
 %{
 #include <cool-parse.h>
 #include <stringtab.h>
 #include <utilities.h>
 
+int input(void);        
 /* The compiler assumes these identifiers. */
 #define yylval cool_yylval
 #define yylex  cool_yylex
@@ -38,7 +42,7 @@ extern int curr_lineno;
 extern int verbose_flag;
 
 extern YYSTYPE cool_yylval;
-
+void count();
 /*
  *  Add Your own definitions here
  */
@@ -137,6 +141,7 @@ SPC            [ \t\r\f\v]
 {OF}         {return (OF); }
 {NOT}        {return (NOT); }
 
+
 {DIGIT}+ {
         cool_yylval.symbol = inttable.add_string(yytext);
         return INT_CONST;
@@ -171,65 +176,54 @@ SPC            [ \t\r\f\v]
   *  \n \t \b \f, the result is c.
   *
   */
-\"  BEGIN(STRING_START);
-<STRING_START>[^\n^\b^\t^\f^\"]*\"    {
-        int leng = strlen(yytext);
-        char *str = (char *)malloc(leng+1);
-        memset(str, 0, leng+1);
+
+ /* a string is a " and zero or more eith an escapted any thing, \\.
+     or a non-quota charactor, and finally the termination quote
+     put together:
+     got following this.
+ */
+ /* TODO: check the backslash2 test case... */
+\"(\\.|[^"])*\" {
+// cool_yylval.symbol = stringtable.add_string(str);
+ int i;
+
+        char *str = (char *)malloc(MAX_STR_CONST+1);
+        memset(str, 0, MAX_STR_CONST+1);
+        int backslash = 0;
         int stringleng = 0;
-        for (int i = 0 , slashcnt = 0; i < leng; i++) {
-                if (yytext[i] != '\\')  {
-                        str[stringleng++] = yytext[i];
-                        continue;
-                } else {
-                        switch (yytext[i+1]) {
-                        case 'n':
-                                str[stringleng++] = '\n';
-                                break;
-                        case 't':
-                                str[stringleng++] = '\t';
-                                break;
-                        case 'b':
-                                str[stringleng++] = '\b';
-                                break;
-                        case 'f':
-                                str[stringleng++] = '\f';
-                                break;
-                        case '\\':
-                                str[stringleng++] = '\\';
-                                break;
-                        default:
-                                str[stringleng++] = yytext[i+1];
-                                break;
-                        }
-                        i++;
-                }
+for (i = 1; yytext[i] != '\0' && i < MAX_STR_CONST; i++) {
+if (yytext[i] != '\\') {
+           str[stringleng++] = yytext[i];
+} else {
+        if (yytext[i+1] != '\0') {
+        switch(yytext[i+1]) {
+            case 'n': str[stringleng++] = '\n'; break;
+            case 't': str[stringleng++] = '\t'; break;
+            case 'b': str[stringleng++] = '\b'; break;
+            case 'f': str[stringleng++] = '\f'; break;
+            case '\\':str[stringleng++] = '\\'; break;
+            case '"': str[stringleng++] = '"'; break;
+            default: str[stringleng++] = yytext[i+1];  break;
         }
-        if (stringleng > MAX_STR_CONST) {
-                cool_yylval.error_msg = "String constant too long";
-                BEGIN(INITIAL);
-                return (ERROR);
-        }
-                
-        str[stringleng-1] = '\0';
-        cool_yylval.symbol = stringtable.add_string(str);
+         i++;
+   }
+
+}
+}
+if (i >= MAX_STR_CONST) {
+       /* if run here, it means the string is too long... */
+        cool_yylval.error_msg = "String constant too long";
         free(str);
         BEGIN(INITIAL);
-        return (STR_CONST);
- }
-
-<STRING_START>[^\n^\b^\t^\f^\"]*^\\\n {
-        cool_yylval.error_msg = strdup("Unterminated string constant");
-        curr_lineno++;
-        BEGIN(INITIAL);
         return (ERROR);
- }
-
-<STRING_START>EOF               {
-        cool_yylval.error_msg = strdup("EOF in string constant");
-        BEGIN(INITIAL);
-        return (ERROR);
- }
+} else {
+                        str[stringleng - 1] = '\0';
+                        cool_yylval.symbol = stringtable.add_string(str);
+                        free(str);
+                        BEGIN(INITIAL);
+                        return (STR_CONST);
+}
+}
 
  /* leave these charator along. */
  /* <- => ( ) , ; + - * / < = . @ ~ { } */
