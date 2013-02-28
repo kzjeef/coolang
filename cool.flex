@@ -75,6 +75,7 @@ OF              (?i:of)
 NOT             (?i:not)
  /* TRUE            true                        */
  /* false */
+LE              <=
 TBOOL            (t[Rr][Uu][Ee])
 FBOOL            (f[Aa][Ll][sS][eE])
 DIGIT             [0-9]
@@ -82,6 +83,7 @@ OBJID                [a-z][a-zA-Z0-9_]*
 TYPEID                [A-Z][a-zA-Z0-9_]*
 
 WSE                   [ \t\r]
+SPC            [ \t\r\f\v]
 
 %%
 
@@ -95,8 +97,8 @@ WSE                   [ \t\r]
 <LINE_COMMENT><<EOF>>         {};
 
 "(*"    BEGIN(COMMENT);
-<COMMENT>[^"*"\n]*   /*eat anything but * */
-<COMMENT>"*"[^"*)"\n]*   /*eat up * follow by ) */
+<COMMENT>[^*\n]*   /*eat anything but * */
+<COMMENT>"*"[^"*)"\n]*  {}  /*eat up * follow by ) */
 <COMMENT>\n             {curr_lineno++;}
 <COMMENT>"*"+")"        BEGIN(INITIAL);
 <COMMENT><<EOF>>        {
@@ -120,7 +122,8 @@ WSE                   [ \t\r]
   * Keywords are case-insensitive except for the values true and false,
   * which must begin with a lower-case letter.
   */
-{LET}        {return (LET); }    
+{LET}        {return (LET); }
+{LE}         {return (LE); }
 (?i:class)      {return (CLASS);}
 {ELSE}       {return (ELSE); }
 {FI}         {return (FI); }
@@ -168,11 +171,43 @@ WSE                   [ \t\r]
   */
 \"  BEGIN(STRING_START);
 <STRING_START>[^\n^\b^\t^\f^\"]*\"    {
-                  yytext[yyleng-1]= '\0';
-                  cool_yylval.symbol = stringtable.add_string(yytext); 
-                  BEGIN(INITIAL);
-                  return (STR_CONST);
+        int leng = strlen(yytext);
+        int stringleng = 0;
+        for (int i = 0 , slashcnt = 0; i < leng; i++) {
+                if (yytext[i] != '\\')  {
+                        stringleng++;
+                        continue;
+                } else {
+                        slashcnt++;
+                        /* else is equal = '\\' */
+                        switch (yytext[i+1]) {
+                        case 'n':
+                                yytext[i] = '\n';
+                                break;
+                        case 't':
+                                yytext[i] = '\t';
+                                break;
+                        case '0':
+                                if (stringleng + slashcnt != strlen(yytext)) {
+                                        cool_yylval.error_msg = "ssss";
+                                        return ERROR;
+                                }
+                                break;
+                        case 'b':
+                                yytext[i] = '\b';
+                                break;
+                        case 'f':
+                                yytext[i] = '\f';
+                                break;
+                        }
+                        memcpy(&yytext[i+1], &yytext[i+2], leng-i + 1);
+                }
         }
+        yytext[stringleng-1]= '\0';
+        cool_yylval.symbol = stringtable.add_string(yytext); 
+        BEGIN(INITIAL);
+        return (STR_CONST);
+ }
 
 <STRING_START>[^\n^\b^\t^\f^\"]*^\\\n { cool_yylval.error_msg = strdup("Unterminated string constant");
                                       curr_lineno++;
@@ -188,10 +223,12 @@ WSE                   [ \t\r]
  /* leave these charator along. */
  /* <- => ( ) , ; + - * / < = . @ ~ { } */
 
-[ \t\r\f\v]+  /* eat whitespace */
-
-^\n {
-        return yytext[0];
+{SPC}  {} /* eat whitespace */
+[ \t] {}
+\n    {curr_lineno++;}
+. {
+        if (yytext[0] != ' ')
+                return yytext[0];
   }
  /* . { */
  /*   cool_yylval.error_msg = yytext; */
