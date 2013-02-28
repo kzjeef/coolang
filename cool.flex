@@ -81,8 +81,6 @@ FBOOL            (f[Aa][Ll][sS][eE])
 DIGIT             [0-9]
 OBJID                [a-z][a-zA-Z0-9_]*
 TYPEID                [A-Z][a-zA-Z0-9_]*
-
-WSE                   [ \t\r]
 SPC            [ \t\r\f\v]
 
 %%
@@ -93,8 +91,8 @@ SPC            [ \t\r\f\v]
 
 "--"  BEGIN(LINE_COMMENT);
 <LINE_COMMENT>\n              { ++curr_lineno; BEGIN(INITIAL); }
-<LINE_COMMENT>.*                {};
-<LINE_COMMENT><<EOF>>         {};
+<LINE_COMMENT>.*       
+<LINE_COMMENT><<EOF>>  
 
 "(*"    BEGIN(COMMENT);
 <COMMENT>[^*\n]*   /*eat anything but * */
@@ -116,8 +114,6 @@ SPC            [ \t\r\f\v]
   */
 {DARROW}		{ return (DARROW); }
 {ASSIGN}                { return (ASSIGN); }
-
-
  /*
   * Keywords are case-insensitive except for the values true and false,
   * which must begin with a lower-case letter.
@@ -159,9 +155,15 @@ SPC            [ \t\r\f\v]
 
 
  /* TODO: needs to check the table and declear */
-{OBJID}    {cool_yylval.symbol = idtable.add_string(yytext); return (OBJECTID);}
+{OBJID}    {
+        cool_yylval.symbol = idtable.add_string(yytext);
+        return (OBJECTID);
+}
 
-{TYPEID}    {cool_yylval.symbol = idtable.add_string(yytext); return (TYPEID);}
+{TYPEID}    {
+        cool_yylval.symbol = idtable.add_string(yytext);
+        return (TYPEID);
+}
 
  /*
   *  String constants (C syntax)
@@ -172,48 +174,57 @@ SPC            [ \t\r\f\v]
 \"  BEGIN(STRING_START);
 <STRING_START>[^\n^\b^\t^\f^\"]*\"    {
         int leng = strlen(yytext);
+        char *str = (char *)malloc(leng+1);
+        memset(str, 0, leng+1);
         int stringleng = 0;
         for (int i = 0 , slashcnt = 0; i < leng; i++) {
                 if (yytext[i] != '\\')  {
-                        stringleng++;
+                        str[stringleng++] = yytext[i];
                         continue;
                 } else {
-                        slashcnt++;
-                        /* else is equal = '\\' */
                         switch (yytext[i+1]) {
                         case 'n':
-                                yytext[i] = '\n';
+                                str[stringleng++] = '\n';
                                 break;
                         case 't':
-                                yytext[i] = '\t';
-                                break;
-                        case '0':
-                                if (stringleng + slashcnt != strlen(yytext)) {
-                                        cool_yylval.error_msg = "ssss";
-                                        return ERROR;
-                                }
+                                str[stringleng++] = '\t';
                                 break;
                         case 'b':
-                                yytext[i] = '\b';
+                                str[stringleng++] = '\b';
                                 break;
                         case 'f':
-                                yytext[i] = '\f';
+                                str[stringleng++] = '\f';
+                                break;
+                        case '\\':
+                                str[stringleng++] = '\\';
+                                break;
+                        default:
+                                str[stringleng++] = yytext[i+1];
                                 break;
                         }
-                        memcpy(&yytext[i+1], &yytext[i+2], leng-i + 1);
+                        i++;
                 }
         }
-        yytext[stringleng-1]= '\0';
-        cool_yylval.symbol = stringtable.add_string(yytext); 
+        if (stringleng > MAX_STR_CONST) {
+                cool_yylval.error_msg = "String constant too long";
+                BEGIN(INITIAL);
+                return (ERROR);
+        }
+                
+        str[stringleng-1] = '\0';
+        cool_yylval.symbol = stringtable.add_string(str);
+        free(str);
         BEGIN(INITIAL);
         return (STR_CONST);
  }
 
-<STRING_START>[^\n^\b^\t^\f^\"]*^\\\n { cool_yylval.error_msg = strdup("Unterminated string constant");
-                                      curr_lineno++;
-                                      BEGIN(INITIAL);
-                                      return (ERROR);
-                                      }
+<STRING_START>[^\n^\b^\t^\f^\"]*^\\\n {
+        cool_yylval.error_msg = strdup("Unterminated string constant");
+        curr_lineno++;
+        BEGIN(INITIAL);
+        return (ERROR);
+ }
+
 <STRING_START>EOF               {
         cool_yylval.error_msg = strdup("EOF in string constant");
         BEGIN(INITIAL);
@@ -230,10 +241,6 @@ SPC            [ \t\r\f\v]
         if (yytext[0] != ' ')
                 return yytext[0];
   }
- /* . { */
- /*   cool_yylval.error_msg = yytext; */
- /*   return (ERROR); */
- /* } */
 
 <<EOF>> {
         yyterminate();
