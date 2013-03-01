@@ -40,6 +40,7 @@ char *string_buf_ptr;
 
 extern int curr_lineno;
 extern int verbose_flag;
+int comment_depth = 0;
 
 extern YYSTYPE cool_yylval;
 void count();
@@ -94,23 +95,31 @@ SPC            [ \t\r\f\v]
   */
 
 "--"  BEGIN(LINE_COMMENT);
-<LINE_COMMENT>\n              { ++curr_lineno; BEGIN(INITIAL); }
-<LINE_COMMENT>.*       
-<LINE_COMMENT><<EOF>>  
+<LINE_COMMENT>\n              {++curr_lineno; BEGIN(INITIAL); }
+<LINE_COMMENT>.*
+<LINE_COMMENT><<EOF>>         {BEGIN(INITIAL);yyterminate();}
 
-"(*"    BEGIN(COMMENT);
+"(*"                          {
+        if (comment_depth++ == 0) {
+                /* printf("BEGIN\n"); */
+                BEGIN(COMMENT);
+        }
+}
+<COMMENT>[^*\n]*"("+"*"     { /* printf("BEGIN2\n"); */comment_depth++;}
 <COMMENT>[^*\n]*   /*eat anything but * */
 <COMMENT>"*"[^"*)"\n]*  {}  /*eat up * follow by ) */
 <COMMENT>\n             {curr_lineno++;}
-<COMMENT>"*"+")"        BEGIN(INITIAL);
+<COMMENT>"*"+")"        { if (--comment_depth == 0) {/* printf("FINISH\n"); */BEGIN(INITIAL);} };
 <COMMENT><<EOF>>        {
                         cool_yylval.error_msg = strdup("EOF in comment");
+                        BEGIN(INITIAL);
+                        yyterminate();
                         return (ERROR);                        
                         }
 "*)"                    {
-                        cool_yylval.error_msg = strdup("Unmatched *)");
-                        return (ERROR);
-                        }         
+        cool_yylval.error_msg = strdup("unmatch *)");
+        return (ERROR);
+                        }
 
 
  /*
@@ -184,6 +193,7 @@ SPC            [ \t\r\f\v]
      got following this.
  */
  /* TODO: check the backslash2 test case... */
+
 \"(\\.|[^"])*\" {
   //  cool_yylval.symbol = stringtable.add_string(str);
         int i;
@@ -251,6 +261,11 @@ SPC            [ \t\r\f\v]
 [ \t] {}
 \n    {curr_lineno++;}
 . {
+        if (yytext[0] == '_') {
+              cool_yylval.error_msg = strdup(yytext);
+              return ERROR;
+        }
+
         if (yytext[0] != ' ')
                 return yytext[0];
   }
