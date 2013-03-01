@@ -44,6 +44,7 @@ int comment_depth = 0;
 
 extern YYSTYPE cool_yylval;
 void count();
+int is_valid_char(char c);
 
 /* #define DEBUG_COMMENT */
 /*
@@ -287,6 +288,14 @@ SPC            [ \t\r\f\v]
 [ \t] {}
 \n    {curr_lineno++;}
 . {
+
+        if (!((yytext[0] > 'a' && yytext[0] < 'z')
+            || (yytext[0] > 'A' && yytext[0] < 'Z')
+           || (yytext[0] > '1' && yytext[0] < '9')
+            || is_valid_char(yytext[0]))) {
+              cool_yylval.error_msg = strdup(yytext);
+              return ERROR;
+        }
         if (yytext[0] == '_' || yytext[0] == '\0') {
               cool_yylval.error_msg = strdup(yytext);
               return ERROR;
@@ -300,3 +309,14 @@ SPC            [ \t\r\f\v]
         yyterminate();
     }
 %%
+
+
+int is_valid_char(char c) {
+
+        char *chars = "(),;:+-*/<=.@~{}";
+        for (int i = 0; i < strlen(chars); i++) {
+                if (c == chars[i])
+                   return 1;
+        }
+        return 0;
+}
