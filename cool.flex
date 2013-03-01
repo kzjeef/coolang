@@ -15,7 +15,7 @@ L			[a-zA-Z_]
 #include <stringtab.h>
 #include <utilities.h>
 
-int input(void);        
+static int input(void);
 /* The compiler assumes these identifiers. */
 #define yylval cool_yylval
 #define yylex  cool_yylex
@@ -42,7 +42,6 @@ extern int curr_lineno;
 extern int verbose_flag;
 
 extern YYSTYPE cool_yylval;
-void count();
 /*
  *  Add Your own definitions here
  */
@@ -98,9 +97,33 @@ SPC            [ \t\r\f\v]
 <LINE_COMMENT>.*       
 <LINE_COMMENT><<EOF>>  
 
+
+/* "(*"  { */
+/*         int c; */
+/*         int i = 0;; */
+/*         for ( ; ; ) { */
+/*                 while ((c = yyinput()) != '*' && c != EOF) { */
+/*                         i++; */
+/*                         ; */
+/*                 } */
+/*                 if (c == '*') { */
+/*                         while ((c = yyinput()) == '*') */
+/*                                 ; */
+/*                         if (c == ')') { */
+/*                                 yyless(i); */
+/*                                 break; */
+/*                         } */
+/*                         } */
+/*                 if (c == EOF) { */
+/*                         cool_yylval.error_msg = strdup("EOF in comment"); */
+/*                         return (ERROR); */
+/*                 } */
+/*         } */
+/*  } */
+
 "(*"    BEGIN(COMMENT);
-<COMMENT>[^*\n]*   /*eat anything but * */
-<COMMENT>"*"[^"*)"\n]*  {}  /*eat up * follow by ) */
+<COMMENT>[^*\n]*   
+<COMMENT>"*"[^"*)"\n]*  {}  
 <COMMENT>\n             {curr_lineno++;}
 <COMMENT>"*"+")"        BEGIN(INITIAL);
 <COMMENT><<EOF>>        {
