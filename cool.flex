@@ -44,6 +44,8 @@ int comment_depth = 0;
 
 extern YYSTYPE cool_yylval;
 void count();
+
+/* #define DEBUG_COMMENT */
 /*
  *  Add Your own definitions here
  */
@@ -101,20 +103,37 @@ SPC            [ \t\r\f\v]
 
 "(*"                          {
         if (comment_depth++ == 0) {
-                /* printf("BEGIN\n"); */
+#ifdef DEBUG_COMMENT
+                printf("BEGIN\n");
+#endif
                 BEGIN(COMMENT);
         }
 }
-<COMMENT>[^*\n]*"("+"*"     { /* printf("BEGIN2\n"); */comment_depth++;}
+<COMMENT>[^*\n]*"("+"*"     {
+#ifdef DEBUG_COMMENT
+        printf("BEGIN2\n");
+#endif
+        comment_depth++;
+ }
 <COMMENT>[^*\n]*   /*eat anything but * */
 <COMMENT>"*"[^"*)"\n]*  {}  /*eat up * follow by ) */
 <COMMENT>\n             {curr_lineno++;}
-<COMMENT>"*"+")"        { if (--comment_depth == 0) {/* printf("FINISH\n"); */BEGIN(INITIAL);} };
+<COMMENT>"*"+")"        {
+        if (--comment_depth == 0) {
+#ifdef DEBUG_COMMENT
+                printf("FINISH\n");
+#endif
+                BEGIN(INITIAL);}
+ }
 <COMMENT><<EOF>>        {
+#ifdef DEBUG_COMMENT
+        printf("EOF Comment?\n");
+#endif
                         cool_yylval.error_msg = strdup("EOF in comment");
+
                         BEGIN(INITIAL);
+                        return (ERROR);
                         yyterminate();
-                        return (ERROR);                        
                         }
 "*)"                    {
         cool_yylval.error_msg = strdup("unmatch *)");
@@ -204,6 +223,13 @@ SPC            [ \t\r\f\v]
         int stringleng = 0;
         int charcount = 0;
         for (i = 1; yytext[i] != '\0' && charcount < MAX_STR_CONST+1; i++,charcount++) {
+
+                /* if (yytext[i] == '\0') { */
+                /*                cool_yylval.error_msg = "String contains null character."; */
+                /*                 free(str); */
+                /*                 /\* BEGIN(INITIAL); *\/ */
+                /*                 return (ERROR); */
+                /*           } */
                 if (yytext[i] != '\\') {
                         if (yytext[i] == '\n') {
                                 curr_lineno++;
@@ -261,7 +287,7 @@ SPC            [ \t\r\f\v]
 [ \t] {}
 \n    {curr_lineno++;}
 . {
-        if (yytext[0] == '_') {
+        if (yytext[0] == '_' || yytext[0] == '\0') {
               cool_yylval.error_msg = strdup(yytext);
               return ERROR;
         }
