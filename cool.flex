@@ -38,6 +38,7 @@ extern FILE *fin; /* we read from this file */
 char string_buf[MAX_STR_CONST]; /* to assemble string constants */
 char *string_buf_ptr;
 int  string_has_zero = 0;
+int  string_has_escape_null = 0;
 
 extern int curr_lineno;
 extern int verbose_flag;
@@ -219,6 +220,7 @@ SPC            [ \t\r\f\v]
 \"     {
         string_buf_ptr = string_buf;
         string_has_zero = 0;
+        string_has_escape_null = 0;
         BEGIN(STRING_START);
 }
 
@@ -226,6 +228,18 @@ SPC            [ \t\r\f\v]
 
         if (string_has_zero) {
                 cool_yylval.error_msg = "String contains null character.";
+                BEGIN(INITIAL);
+                return ERROR;
+        }
+
+        if (string_has_escape_null) {
+                cool_yylval.error_msg = "String contains escaped null character.";
+                BEGIN(0);
+                return ERROR;
+        }
+
+        if (string_buf_ptr - string_buf >= sizeof(string_buf)) {
+                cool_yylval.error_msg = "String constant too long";
                 BEGIN(INITIAL);
                 return ERROR;
         }
@@ -268,6 +282,15 @@ SPC            [ \t\r\f\v]
         *string_buf_ptr++ = '\t';
  }
 
+<STRING_START>\\\t {
+        if (string_buf_ptr > (string_buf + sizeof(string_buf))) {
+                cool_yylval.error_msg = "String constant too long";
+                BEGIN(INITIAL);
+                return (ERROR);
+        }
+        *string_buf_ptr++ = '\t';
+ }
+
 <STRING_START>\\\\ {
         if (string_buf_ptr > (string_buf + sizeof(string_buf))) {
                 cool_yylval.error_msg = "String constant too long";
@@ -295,7 +318,7 @@ SPC            [ \t\r\f\v]
         *string_buf_ptr++ = '\b';
 }
 
-<STRING_START>\\[a-g] {
+<STRING_START>\\[arcdge] {
         if (string_buf_ptr > (string_buf + sizeof(string_buf))) {
                 cool_yylval.error_msg = "String constant too long";
                 BEGIN(INITIAL);
@@ -312,6 +335,10 @@ SPC            [ \t\r\f\v]
                 return (ERROR);
         }
         *string_buf_ptr++ = '\"';
+}
+
+<STRING_START>\\\0 {
+        string_has_escape_null = 1;
 }
 
 <STRING_START>\\\n {
