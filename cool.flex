@@ -309,6 +309,25 @@ SPC            [ \t\r\f\v]
         *string_buf_ptr++ = '\f';
  }
 
+<STRING_START>\\\f {
+        if (string_buf_ptr > (string_buf + sizeof(string_buf))) {
+                cool_yylval.error_msg = "String constant too long";
+                BEGIN(INITIAL);
+                return (ERROR);
+        }
+        *string_buf_ptr++ = '\f';
+ }
+
+<STRING_START>\\\b {
+        if (string_buf_ptr > (string_buf + sizeof(string_buf))) {
+                cool_yylval.error_msg = "String constant too long";
+                BEGIN(INITIAL);
+                return (ERROR);
+        }
+        *string_buf_ptr++ = '\b';
+}
+
+
 <STRING_START>\\b {
         if (string_buf_ptr > (string_buf + sizeof(string_buf))) {
                 cool_yylval.error_msg = "String constant too long";
@@ -318,7 +337,7 @@ SPC            [ \t\r\f\v]
         *string_buf_ptr++ = '\b';
 }
 
-<STRING_START>\\[arcdge] {
+<STRING_START>\\[arcdge-] {
         if (string_buf_ptr > (string_buf + sizeof(string_buf))) {
                 cool_yylval.error_msg = "String constant too long";
                 BEGIN(INITIAL);
