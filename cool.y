@@ -132,6 +132,7 @@
     /* Declare types for the grammar's non-terminals. */
     %type <program> program
     %type <classes> class_list
+    %type <class_> class
     %type <feature> feature
     %type <features> feature_list
     %type <features> optional_feature_list
@@ -142,7 +143,6 @@
 
     %type <expressions>  option_expr_list_semicdon opt_expr_list case_list assign_list
 
-    %type <class_> class
     
     /* You will want to change the following line. */
     
@@ -166,10 +166,10 @@
     ;
     
     /* If no parent is specified, the class inherits from the Object class. */
-    class	: CLASS TYPEID '{' feature_list '}' ';'
+    class	: CLASS TYPEID '{' optional_feature_list '}' ';'
     { printf("here1\n"); $$ = class_($2,idtable.add_string("Object"),$4,
     stringtable.add_string(curr_filename)); }
-    | CLASS TYPEID INHERITS TYPEID '{' feature_list '}' ';'
+    | CLASS TYPEID INHERITS TYPEID '{' optional_feature_list '}' ';'
     {  $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
     ;
 
@@ -185,15 +185,16 @@
     {  @$ = @2; $$ = append_Features($1, single_Features($2)); }
     ;
 
-    feature:  OBJECTID '(' formal_list ')' ':' TYPEID '{' expr '}' ';'
+    feature:  OBJECTID '(' opt_formal_list ')' ':' TYPEID '{' expr '}' ';'
     {   @$ = @10; $$ = method($1, $3, $6, $8);  }
-    | OBJECTID ':' TYPEID ASSIGN expr
+    | OBJECTID ':' TYPEID ASSIGN expr ';'
     {   @$ = @5;  $$ = attr($1, $3, $5);  }
+    | formal
     ;
 
-    formal: OBJECTID ':' TYPEID
+    formal: OBJECTID ':' TYPEID ';'
     {   @$ = @3; $$ = formal($1, $3); }
-    ; 
+    ;
     opt_formal_list:                /* empty */
     { $$ = nil_Formals();  }
     | formal_list
@@ -254,11 +255,14 @@
     {  @$ = @1; $$ = string_const($1); }
     | BOOL_CONST
     { @$ = @1; $$ = bool_const($1); }
-    ; 
+    ;
 
 option_expr_list_semicdon:
    expr ';' opt_expr_list
-   { $@ = @1; SET_NODELOC(@3); $$ = append_Expressions(single_Expressions($1), $3); }
+   { @$ = @1;
+     SET_NODELOC(@3);
+     $$ = append_Expressions(single_Expressions($1), $3);
+   }
    ;
 
 opt_expr_list:                      /*empty*/
