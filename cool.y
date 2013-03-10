@@ -132,10 +132,19 @@
     /* Declare types for the grammar's non-terminals. */
     %type <program> program
     %type <classes> class_list
+    %type <feature> feature
+    %type <features> feature_list
+    %type <features> optional_feature_list
+    %type <formal>   formal
+    %type <formals>  formal_list
+    %type <formals>  opt_formal_list
+    %type <expression> expr
+
+    %type <expressions>  option_expr_list_semicdon opt_expr_list case_list assign_list
+
     %type <class_> class
     
     /* You will want to change the following line. */
-    %type <features> dummy_feature_list
     
     /* Precedence declarations go here. */
     
@@ -157,18 +166,120 @@
     ;
     
     /* If no parent is specified, the class inherits from the Object class. */
-    class	: CLASS TYPEID '{' option_feature_list '}' ';'
-    { $$ = class_($2,idtable.add_string("Object"),$4,
+    class	: CLASS TYPEID '{' feature_list '}' ';'
+    { printf("here1\n"); $$ = class_($2,idtable.add_string("Object"),$4,
     stringtable.add_string(curr_filename)); }
-    | CLASS TYPEID INHERITS TYPEID '{' option_feature_list '}' ';'
-    { $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
+    | CLASS TYPEID INHERITS TYPEID '{' feature_list '}' ';'
+    {  $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
     ;
-    
+
     /* Feature list may be empty, but no empty features in list. */
-    option_feature_list:		/* empty */
-    {  $$ = nil_Features(); }
-    | feature
-    
+    optional_feature_list:		/* empty */
+    { $$ = nil_Features(); }
+    | feature_list
+    ;
+
+    feature_list: feature
+    {  @$ = @1; $$ = single_Features($1); }
+    | feature_list feature
+    {  @$ = @2; $$ = append_Features($1, single_Features($2)); }
+    ;
+
+    feature:  OBJECTID '(' formal_list ')' ':' TYPEID '{' expr '}' ';'
+    {   @$ = @10; $$ = method($1, $3, $6, $8);  }
+    | OBJECTID ':' TYPEID ASSIGN expr
+    {   @$ = @5;  $$ = attr($1, $3, $5);  }
+    ;
+
+    formal: OBJECTID ':' TYPEID
+    {   @$ = @3; $$ = formal($1, $3); }
+    ; 
+    opt_formal_list:                /* empty */
+    { $$ = nil_Formals();  }
+    | formal_list
+    ;
+    formal_list:  formal
+    {  @$ = @1; $$ = single_Formals($1); }
+    | formal_list formal
+    {  @$ = @2; append_Formals($1, single_Formals($2)); }
+    ;
+
+    expr : OBJECTID ASSIGN expr
+    {  @$ = @3; $$ = assign ($1, $3); }
+    | OBJECTID '@' TYPEID '.' OBJECTID '(' opt_expr_list ')'
+    {  }
+    | OBJECTID '.' OBJECTID '(' opt_expr_list ')'
+    { }
+    | OBJECTID '(' opt_expr_list ')'
+    { }
+    | IF expr THEN expr ELSE expr FI
+    { }
+    | WHILE expr LOOP expr POOL
+    {  }
+    | '{' option_expr_list_semicdon '}'
+    {  @$ = @3; block($2);  }
+    | LET OBJECTID ':' assign_list  IN expr
+    {}
+    | CASE expr OF case_list ESAC
+    {}
+    | NEW TYPEID
+    {  @$ = @2; new_($2); }
+    | ISVOID expr
+    {  @$ = @2; $$ = isvoid($2); }
+    | expr '+' expr
+    {  @$ = @3; $$ = plus($1, $3); }
+    | expr '-' expr
+    {  @$ = @3; $$ = sub($1, $3); }
+    | expr '*' expr
+    {  @$ = @3; $$ = mul($1, $3); }
+    | expr '/' expr
+    {  @$ = @3; $$ = divide($1, $3); }
+    | '~' expr
+    {  @$ = @2; $$ = neg($2); }
+    | expr '<' expr
+    {  @$ = @3; $$ = lt($1, $3); }
+    | expr LE expr
+    {  @$ = @3; $$ = leq($1, $3); }
+    | expr '=' expr
+    {  @$ = @3; $$ = eq($1, $3); }
+    | NOT expr
+    {  @$ = @2; $$ = neg($2); }           /*TODO, this maybe wrong...*/
+    | '(' expr ')'
+    {   @$ = @3; comp($2); }
+    | OBJECTID
+    {  @$ = @1; $$ = object($1); }
+    | INT_CONST
+    {  @$ = @1; $$ = int_const($1);}
+     | STR_CONST
+    {  @$ = @1; $$ = string_const($1); }
+    | BOOL_CONST
+    { @$ = @1; $$ = bool_const($1); }
+    ; 
+
+option_expr_list_semicdon:
+   expr ';' opt_expr_list
+   { $@ = @1; SET_NODELOC(@3); $$ = append_Expressions(single_Expressions($1), $3); }
+   ;
+
+opt_expr_list:                      /*empty*/
+   { $$ = nil_Expressions(); }
+   |  opt_expr_list expr
+   {  $$ = append_Expressions($1, single_Expressions($2)); }
+        
+   case_list:
+   {}
+   ;
+   assign_list:
+   {}
+   ;
+// branch
+// assign
+// static dispatrch
+// dispatch
+// cond
+// loop
+// typecase
+
     
     /* end of grammar */
     %%
