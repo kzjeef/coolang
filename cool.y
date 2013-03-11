@@ -133,6 +133,8 @@
     %type <program> program
     %type <classes> class_list
     %type <class_> class
+    %type <case_>  case_
+    %type <cases>  case_list
     %type <feature> feature
     %type <features> feature_list
     %type <features> optional_feature_list
@@ -140,8 +142,9 @@
     %type <formals>  formal_list
     %type <formals>  opt_formal_list
     %type <expression> expr
+    %type <expression> let_init_list
 
-    %type <expressions>  option_expr_list_semicdon opt_expr_list case_list assign_list
+    %type <expressions>  option_expr_list_semicdon opt_expr_list
 
     
     /* You will want to change the following line. */
@@ -158,19 +161,22 @@
     
     class_list
     : class			/* single class */
-    { $$ = single_Classes($1);
+    {
+            @$ = @1;
+            $$ = single_Classes($1);
     parse_results = $$; }
     | class_list class	/* several classes */
-    { $$ = append_Classes($1,single_Classes($2)); 
+    { @$ = @2;
+        $$ = append_Classes($1,single_Classes($2)); 
     parse_results = $$; }
     ;
     
     /* If no parent is specified, the class inherits from the Object class. */
     class	: CLASS TYPEID '{' optional_feature_list '}' ';'
-    { printf("here1\n"); $$ = class_($2,idtable.add_string("Object"),$4,
+    {  @$ = @6; $$ = class_($2,idtable.add_string("Object"),$4,
     stringtable.add_string(curr_filename)); }
     | CLASS TYPEID INHERITS TYPEID '{' optional_feature_list '}' ';'
-    {  $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
+    { @$ = @8;  $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
     ;
 
     /* Feature list may be empty, but no empty features in list. */
@@ -189,40 +195,44 @@
     {   @$ = @10; $$ = method($1, $3, $6, $8);  }
     | OBJECTID ':' TYPEID ASSIGN expr ';'
     {   @$ = @5;  $$ = attr($1, $3, $5);  }
-    | formal
+    | OBJECTID ':' TYPEID ';'
+    {   @$ = @4; $$ =  attr($1, $3, no_expr()); }
     ;
 
-    formal: OBJECTID ':' TYPEID ';'
+    formal: OBJECTID ':' TYPEID 
     {   @$ = @3; $$ = formal($1, $3); }
     ;
     opt_formal_list:                /* empty */
     { $$ = nil_Formals();  }
     | formal_list
     ;
-    formal_list:  formal
+    formal_list: formal
     {  @$ = @1; $$ = single_Formals($1); }
-    | formal_list formal
-    {  @$ = @2; append_Formals($1, single_Formals($2)); }
+    | formal_list ',' formal
+    {  @$ = @3; append_Formals($1, single_Formals($3)); }
     ;
 
     expr : OBJECTID ASSIGN expr
     {  @$ = @3; $$ = assign ($1, $3); }
-    | OBJECTID '@' TYPEID '.' OBJECTID '(' opt_expr_list ')'
-    {  }
-    | OBJECTID '.' OBJECTID '(' opt_expr_list ')'
-    { }
-    | OBJECTID '(' opt_expr_list ')'
-    { }
+    | expr '@' TYPEID '.' OBJECTID '(' expr opt_expr_list ')'
+    { @$ = @8; $$ = static_dispatch($7, $3, $5, $8); }
+    | expr '.' OBJECTID '(' expr opt_expr_list ')'
+    { @$ = @6; $$ = dispatch($5, $3, $6);  }
+    | OBJECTID '(' expr opt_expr_list ')'
+    { @$ = @4; $$ = dispatch($3, $1, $4); }
+    | OBJECTID '('  ')'
+    { @$ = @1; $$ = dispatch(no_expr(), $1, single_Expressions(no_expr())); }
     | IF expr THEN expr ELSE expr FI
-    { }
+    { @$ = @7; $$ = cond($2, $4, $6);  }
     | WHILE expr LOOP expr POOL
-    {  }
+    { @$ = @5; $$ = loop($2, $4); }
     | '{' option_expr_list_semicdon '}'
-    {  @$ = @3; block($2);  }
-    | LET OBJECTID ':' assign_list  IN expr
-    {}
+    {  @$ = @3; $$ = block($2);  }
+/* TODO.... */
+    | LET OBJECTID ':' TYPEID let_init_list IN expr
+    { @$ = @6; $$ = let($2, $4, $7, $5); }
     | CASE expr OF case_list ESAC
-    {}
+    {@$ = @5; $$  =  typcase($2, $4); }
     | NEW TYPEID
     {  @$ = @2; new_($2); }
     | ISVOID expr
@@ -246,7 +256,7 @@
     | NOT expr
     {  @$ = @2; $$ = neg($2); }           /*TODO, this maybe wrong...*/
     | '(' expr ')'
-    {   @$ = @3; comp($2); }
+    {   @$ = @3; $$ = comp($2); }
     | OBJECTID
     {  @$ = @1; $$ = object($1); }
     | INT_CONST
@@ -255,6 +265,7 @@
     {  @$ = @1; $$ = string_const($1); }
     | BOOL_CONST
     { @$ = @1; $$ = bool_const($1); }
+    | 
     ;
 
 option_expr_list_semicdon:
@@ -263,19 +274,33 @@ option_expr_list_semicdon:
      SET_NODELOC(@3);
      $$ = append_Expressions(single_Expressions($1), $3);
    }
+   | error ';' opt_expr_list
+   { @$ = @2; $$ = $3; }
    ;
 
 opt_expr_list:                      /*empty*/
    { $$ = nil_Expressions(); }
-   |  opt_expr_list expr
-   {  $$ = append_Expressions($1, single_Expressions($2)); }
+   |  opt_expr_list option_expr_list_semicdon
+   { @$ = @2;  $$ = append_Expressions($1, $2); }
         
-   case_list:
-   {}
+   case_:  OBJECTID ':' TYPEID DARROW expr ';' 
+   { @$ = @6; $$ = branch($1, $3, $5); }
    ;
-   assign_list:
-   {}
+   case_list : case_
+   { @$ = @1; $$ = single_Cases($1); }
+   | case_list case_
+   { @$ = @2; $$ = append_Cases($1, single_Cases($2)); }
+
+let_init_list:
+;
+
+   /* opt_case_list :              /\*empty*\/ */
+   /* { $$ = nil_Cases(); } */
+   /* | opt_case_list case_list */
+   /* { @$ = @2; $$ = append_Cases($1, $2); } */
    ;
+
+
 // branch
 // assign
 // static dispatrch
