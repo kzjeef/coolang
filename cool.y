@@ -166,26 +166,31 @@
     : class			/* single class */
     {
             @$ = @1;
-                    SET_NODELOC(@1);
+            SET_NODELOC(@1);
             $$ = single_Classes($1);
-    parse_results = $$; }
+            parse_results = $$;
+    }
     | class_list class	/* several classes */
     { @$ = @2;
-                    SET_NODELOC(@2);
+        SET_NODELOC(@2);
         $$ = append_Classes($1,single_Classes($2)); 
-    parse_results = $$; }
+        parse_results = $$;
+    }
     ;
     
     /* If no parent is specified, the class inherits from the Object class. */
     class	: CLASS TYPEID '{' optional_feature_list '}' ';'
     {
-        @$ = @6;
-        SET_NODELOC(@6);
+        @$ = @4;
+        SET_NODELOC(@4);
         $$ = class_($2,idtable.add_string("Object"),$4,
                 stringtable.add_string(curr_filename));
     }
     | CLASS TYPEID INHERITS TYPEID '{' optional_feature_list '}' ';'
-    { @$ = @8; SET_NODELOC(@8); $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
+    {
+            @$ = @6;
+            SET_NODELOC(@6);
+            $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
     ;
 
     /* Feature list may be empty, but no empty features in list. */
@@ -199,14 +204,17 @@
     {  @$ = @1; SET_NODELOC(@1); $$ = single_Features($1); }
     | feature_list feature
     {  @$ = @2; SET_NODELOC(@2); $$ = append_Features($1, single_Features($2)); }
+    | error feature
+    {       @$ = @2; SET_NODELOC(@2); $$ = single_Features($2);
+    }
     ;
 
     feature:  OBJECTID '(' opt_formal_list ')' ':' TYPEID '{' expr '}' ';'
     {   @$ = @8; SET_NODELOC(@8); $$ = method($1, $3, $6, $8);  }
     | OBJECTID ':' TYPEID ASSIGN expr ';'
-    {   @$ = @6; SET_NODELOC(@5);  $$ = attr($1, $3, $5);  }
+    {   @$ = @5; SET_NODELOC(@5);  $$ = attr($1, $3, $5);  }
     | OBJECTID ':' TYPEID ';'
-    {   @$ = @4; SET_NODELOC(@4); $$ =  attr($1, $3, no_expr()); }
+    {   @$ = @3; SET_NODELOC(@3); $$ =  attr($1, $3, no_expr()); }
     ;
 
     formal: OBJECTID ':' TYPEID 
@@ -298,7 +306,7 @@ opt_expr_list:                      /*empty*/
    { @$ = @2; SET_NODELOC(@2); $$ = append_Expressions($1, $2); }
         
    case_:  OBJECTID ':' TYPEID DARROW expr ';' 
-   { @$ = @6; SET_NODELOC(@6); $$ = branch($1, $3, $5); }
+   { @$ = @5; SET_NODELOC(@5); $$ = branch($1, $3, $5); }
    ;
    case_list : case_
    { @$ = @1; SET_NODELOC(@1); $$ = single_Cases($1); }
