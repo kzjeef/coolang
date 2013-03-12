@@ -145,7 +145,7 @@
     %type <formals>  formal_list
     %type <formals>  opt_formal_list
     %type <expression> expr
-    %type <expression> opt_let_init_list
+    %type <expression> opt_let_init_list let_init
 
     %type <expressions>  option_expr_list_semicdon opt_expr_list
 
@@ -254,6 +254,10 @@
 /* TODO.... */
     | LET OBJECTID ':' TYPEID opt_let_init_list IN expr
     { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $5, $7); }
+    | LET OBJECTID ':' TYPEID ASSIGN opt_let_init_list IN expr
+    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $6, $8); }
+    | LET OBJECTID ':' TYPEID IN expr
+    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, no_expr(), $6); }
     | CASE expr OF case_list ESAC
     {@$ = @5; SET_NODELOC(@5); $$  =  typcase($2, $4); }
     | NEW TYPEID
@@ -314,10 +318,19 @@ opt_expr_list:                      /*empty*/
    { @$ = @2; SET_NODELOC(@2); $$ = append_Cases($1, single_Cases($2)); }
    ;
 
-    opt_let_init_list:                          /* empty */
+
+let_init:  OBJECTID ':' TYPEID
+| OBJECTID ':' TYPEID ASSIGN expr
+;
+
+opt_let_init_list:                          /* empty */
     {$$ = no_expr(); }
-    | ASSIGN expr
-    { @$ = @2; SET_NODELOC(@2); $$ = $2; }
+    | opt_let_init_list ',' let_init
+    { @$ = @2; SET_NODELOC(@2); $$ = no_expr(); }
+     | error ',' opt_let_init_list
+     { @$ = @3; SET_NODELOC(@3); $$ = no_expr(); }
+    | let_init
+    { @$ = @1; SET_NODELOC(@1); $$ = no_expr(); }
 ;
 
    /* opt_case_list :              /\*empty*\/ */
