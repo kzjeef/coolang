@@ -192,7 +192,7 @@
             @$ = @6;
             SET_NODELOC(@6);
             $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
-    ;
+;
 
     /* Feature list may be empty, but no empty features in list. */
     optional_feature_list:		/* empty */
@@ -240,6 +240,8 @@
     { @$ = @8; SET_NODELOC(@8); $$ = static_dispatch($7, $3, $5, $8); }
     | expr '.' OBJECTID '(' expr opt_expr_list ')'
     { @$ = @6; SET_NODELOC(@6); $$ = dispatch($5, $3, $6);  }
+    | expr '.' OBJECTID '(' ')'
+    { @$ = @5; SET_NODELOC(@5); $$ = dispatch($1, $3, nil_Expressions());  }
     | OBJECTID '(' expr opt_expr_list ')'
     { @$ = @4; SET_NODELOC(@4); $$ = dispatch($3, $1, $4); }
     | OBJECTID '('  ')'
@@ -250,6 +252,7 @@
     { @$ = @5; SET_NODELOC(@5); $$ = loop($2, $4); }
     | '{' option_expr_list_semicdon '}'
     {  @$ = @3; SET_NODELOC(@3); $$ = block($2);  }
+    | '{' error '}'
 /* TODO.... */
     | LET OBJECTID ':' TYPEID opt_let_init_list IN expr
     { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $5, $7); }
