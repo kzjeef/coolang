@@ -145,7 +145,7 @@
     %type <formals>  formal_list
     %type <formals>  opt_formal_list
     %type <expression> expr
-    %type <expression> let_init_list
+    %type <expression> opt_let_init_list
 
     %type <expressions>  option_expr_list_semicdon opt_expr_list
 
@@ -244,14 +244,12 @@
     | '{' option_expr_list_semicdon '}'
     {  @$ = @3; SET_NODELOC(@3); $$ = block($2);  }
 /* TODO.... */
-    | LET OBJECTID ':' TYPEID let_init_list IN expr
-    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $7, $5); }
+    | LET OBJECTID ':' TYPEID opt_let_init_list IN expr
+    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $5, $7); }
     | CASE expr OF case_list ESAC
     {@$ = @5; SET_NODELOC(@5); $$  =  typcase($2, $4); }
     | NEW TYPEID
     {  @$ = @2; SET_NODELOC(@2); $$ = new_($2); }
-    | ISVOID expr
-    {  @$ = @2; SET_NODELOC(@2); $$ = isvoid($2); }
     | expr '+' expr
     {  @$ = @3; SET_NODELOC(@3); $$ = plus($1, $3); }
     | expr '-' expr
@@ -269,9 +267,11 @@
     | expr '=' expr
     {  @$ = @3; SET_NODELOC(@3); $$ = eq($1, $3); }
     | NOT expr
-    {  @$ = @2; SET_NODELOC(@2); $$ = neg($2); }           /*TODO, this maybe wrong...*/
+    {  @$ = @2; SET_NODELOC(@2); $$ = comp($2); }           /*TODO, this maybe wrong...*/
     | '(' expr ')'
     {   @$ = @3;  SET_NODELOC(@3); $$ = $2; }
+    | ISVOID expr
+    {  @$ = @2; SET_NODELOC(@2); $$ = isvoid($2); }
     | OBJECTID
     {  @$ = @1; SET_NODELOC(@1); $$ = object($1); }
     | INT_CONST
@@ -304,8 +304,12 @@ opt_expr_list:                      /*empty*/
    { @$ = @1; SET_NODELOC(@1); $$ = single_Cases($1); }
    | case_list case_
    { @$ = @2; SET_NODELOC(@2); $$ = append_Cases($1, single_Cases($2)); }
+   ;
 
-let_init_list:
+    opt_let_init_list:                          /* empty */
+    {$$ = no_expr(); }
+    | ASSIGN expr
+    { @$ = @2; SET_NODELOC(@2); $$ = $2; }
 ;
 
    /* opt_case_list :              /\*empty*\/ */
