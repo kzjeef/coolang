@@ -248,6 +248,10 @@
     { @$ = @8; SET_NODELOC(@8);
             $$ = static_dispatch($1, $3, $5,
                                  append_Expressions(single_Expressions($7), $8)); }
+    | expr '@' TYPEID '.' OBJECTID '(' ')'
+    { @$ = @5; SET_NODELOC(@5);
+            $$ = static_dispatch($1, $3, $5,nil_Expressions()); }
+
     | expr '.' OBJECTID '(' expr opt_expr_list ')'
     { @$ = @6; SET_NODELOC(@6); $$ = dispatch($1, $3,
                                               append_Expressions(single_Expressions($5), $6));  }
