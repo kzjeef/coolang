@@ -152,7 +152,7 @@
     %type <formals>  formal_list
     %type <formals>  opt_formal_list
     %type <expression> expr
-    %type <expression> opt_let_init_list let_init
+    %type <expression> let_init
 
     %type <expressions>  option_expr_list_semicdon opt_expr_list
 
@@ -245,12 +245,15 @@
     OBJECTID ASSIGN expr
     {  @$ = @3; SET_NODELOC(@3); $$ = assign ($1, $3); }
     | expr '@' TYPEID '.' OBJECTID '(' expr opt_expr_list ')'
-    { @$ = @8; SET_NODELOC(@8);
-            $$ = static_dispatch($1, $3, $5,
-                                 append_Expressions(single_Expressions($7), $8)); }
+    { @$ = @9; SET_NODELOC(@9);
+      $$ = static_dispatch($1, $3, $5,
+                           append_Expressions(single_Expressions($7), $8));
+    }
     | expr '@' TYPEID '.' OBJECTID '(' ')'
-    { @$ = @5; SET_NODELOC(@5);
-            $$ = static_dispatch($1, $3, $5,nil_Expressions()); }
+    {
+            @$ = @7; SET_NODELOC(@7);
+            $$ = static_dispatch($1, $3, $5,nil_Expressions());
+    }
 
     | expr '.' OBJECTID '(' expr opt_expr_list ')'
     { @$ = @6; SET_NODELOC(@6); $$ = dispatch($1, $3,
@@ -277,9 +280,9 @@
     {  @$ = @3; SET_NODELOC(@3); $$ = block($2);  }
     | '{' error '}'
 /* TODO.... */
-    | LET OBJECTID ':' TYPEID opt_let_init_list IN expr
+    | LET OBJECTID ':' TYPEID let_init IN expr
     { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $5, $7); }
-    | LET OBJECTID ':' TYPEID ASSIGN  expr opt_let_init_list IN expr
+    | LET OBJECTID ':' TYPEID ASSIGN  expr let_init  IN expr
     { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $6, $9); }
     | LET OBJECTID ':' TYPEID IN expr
     { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, no_expr(), $6); }
@@ -354,18 +357,39 @@ opt_expr_list:                      /*empty*/
 
 
 let_init:  OBJECTID ':' TYPEID
-| OBJECTID ':' TYPEID ASSIGN expr
-;
+{
+        @$ = @3;
+        SET_NODELOC(@3);
+        $$ = let($1, $3, no_expr(), no_expr());
+}
+| OBJECTID ':' TYPEID ASSIGN expr {
+        @$ = @3;
+        SET_NODELOC(@3);
+        $$ = let($1, $3, $5, no_expr());
+  }
+| OBJECTID ':' TYPEID ',' let_init
+{
+        @$ = @5;
+        SET_NODELOC(@5);
+        $$ = let($1, $3, no_expr(), $5);
+} | OBJECTID ':' TYPEID ASSIGN expr ',' let_init {
+        @$ = @3;
+        SET_NODELOC(@3);
+        $$ = let($1, $3, $5, $7);
+} |                                     /* empty */
+{ }
 
-opt_let_init_list:                          /* empty */
-    {$$ = no_expr(); }
-    | opt_let_init_list ',' let_init
-    { @$ = @2; SET_NODELOC(@2); $$ = no_expr(); }
-     | error ',' opt_let_init_list
-     { @$ = @3; SET_NODELOC(@3); $$ = no_expr(); }
-    | let_init
-    { @$ = @1; SET_NODELOC(@1); $$ = no_expr(); }
-;
+        ;
+
+/* opt_let_init_list:                          /\* empty *\/ */
+/*     {  } */
+/*     | opt_let_init_list ',' let_init */
+/*     { @$ = @2; SET_NODELOC(@2); $$ = let(); } */
+/*      | error ',' opt_let_init_list */
+/*      { @$ = @3; SET_NODELOC(@3); $$ = $2; } */
+/*     | let_init */
+/*     { @$ = @1; SET_NODELOC(@1); $$ = $1; } */
+/* ; */
 
    /* opt_case_list :              /\*empty*\/ */
    /* { $$ = nil_Cases(); } */
