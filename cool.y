@@ -129,8 +129,15 @@
     value of each non terminal. (See section 3.6 in the bison 
     documentation for details). */
 
+    %right ASSIGN
+    %left NOT
+    %nonassoc '<' LE '='
     %left '+' '-'
     %left '*' '/'
+    %left ISVOID
+    %left '~'
+    %left '@'
+    %left '.'
     
     /* Declare types for the grammar's non-terminals. */
     %type <program> program
@@ -217,6 +224,7 @@
     | OBJECTID ':' TYPEID ';'
     {   @$ = @3; SET_NODELOC(@3); $$ =  attr($1, $3, no_expr()); }
     |  feature:  OBJECTID '(' opt_formal_list ')' ':' TYPEID '{' error '}' ';'
+    {  }
     ;
 
     formal: OBJECTID ':' TYPEID 
