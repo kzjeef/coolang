@@ -293,20 +293,28 @@
     { @$ = @1; SET_NODELOC(@1); $$ = bool_const($1); }
     ;
 
-option_expr_list_semicdon:
-   expr ';' opt_expr_list
-   { @$ = @1;SET_NODELOC(@1);
+option_expr_list_semicdon:              /* empty */
+   {  $$ = nil_Expressions(); }
+   | expr ';' option_expr_list_semicdon
+   { @$ = @3;
      SET_NODELOC(@3);
      $$ = append_Expressions(single_Expressions($1), $3);
    }
-   | error ';' opt_expr_list
-   { @$ = @2; SET_NODELOC(@2); $$ = $3; }
+   | expr
+   { @$ = @1; SET_NODELOC(@1); $$ = single_Expressions($1); }
+   | error ';' option_expr_list_semicdon
    ;
 
 opt_expr_list:                      /*empty*/
    { $$ = nil_Expressions(); }
-   |  opt_expr_list option_expr_list_semicdon
-   { @$ = @2; SET_NODELOC(@2); $$ = append_Expressions($1, $2); }
+   |  opt_expr_list ',' expr
+   { @$ = @3; SET_NODELOC(@3);
+           $$ = append_Expressions($1, single_Expressions($3)); }
+   | expr
+   { @$ = @1; SET_NODELOC(@1);
+           $$ = single_Expressions($1);
+   }
+   ;
         
    case_:  OBJECTID ':' TYPEID DARROW expr ';' 
    { @$ = @5; SET_NODELOC(@5); $$ = branch($1, $3, $5); }
