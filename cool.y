@@ -229,23 +229,26 @@
 
     formal_list: formal
     {  @$ = @1; SET_NODELOC(@1); $$ = single_Formals($1); }
-    | formal_list ',' formal
-    {  @$ = @3; SET_NODELOC(@3); $$ = append_Formals($1, single_Formals($3)); }
+    | formal ',' formal_list 
+    {  @$ = @3; SET_NODELOC(@3); $$ = append_Formals(single_Formals($1), $3); }
     ;
 
     expr :
     OBJECTID ASSIGN expr
     {  @$ = @3; SET_NODELOC(@3); $$ = assign ($1, $3); }
     | expr '@' TYPEID '.' OBJECTID '(' expr opt_expr_list ')'
-    { @$ = @8; SET_NODELOC(@8); $$ = static_dispatch($7, $3, $5, $8); }
+    { @$ = @8; SET_NODELOC(@8);
+            $$ = static_dispatch($1, $3, $5,
+                                 append_Expressions(single_Expressions($7), $8)); }
     | expr '.' OBJECTID '(' expr opt_expr_list ')'
-    { @$ = @6; SET_NODELOC(@6); $$ = dispatch($5, $3, $6);  }
+    { @$ = @6; SET_NODELOC(@6); $$ = dispatch($1, $3,
+                                              append_Expressions(single_Expressions($5), $6));  }
     | expr '.' OBJECTID '(' ')'
     { @$ = @5; SET_NODELOC(@5); $$ = dispatch($1, $3, nil_Expressions());  }
     | OBJECTID '(' expr opt_expr_list ')'
-    { @$ = @4; SET_NODELOC(@4); $$ = dispatch($3, $1, $4); }
+    { @$ = @4; SET_NODELOC(@4); $$ = dispatch(no_expr(), $1, append_Expressions(single_Expressions($3), $4)); }
     | OBJECTID '('  ')'
-    { @$ = @1; SET_NODELOC(@1); $$ = dispatch(no_expr(), $1, single_Expressions(no_expr())); }
+    { @$ = @1; SET_NODELOC(@1); $$ = dispatch(no_expr(), $1, nil_Expressions()); }
     | IF expr THEN expr ELSE expr FI
     { @$ = @7; SET_NODELOC(@7); $$ = cond($2, $4, $6);  }
     | WHILE expr LOOP expr POOL
