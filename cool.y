@@ -151,7 +151,7 @@
     %type <formal>   formal
     %type <formals>  formal_list
     %type <formals>  opt_formal_list
-    %type <expression> expr
+    %type <expression> expr let_statement
     %type <expression> let_init
 
     %type <expressions>  option_expr_list_semicdon opt_expr_list
@@ -279,13 +279,8 @@
     | '{' option_expr_list_semicdon '}'
     {  @$ = @3; SET_NODELOC(@3); $$ = block($2);  }
     | '{' error '}'
+    | let_statement
 /* TODO.... */
-    | LET OBJECTID ':' TYPEID let_init IN expr
-    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $5, $7); }
-    | LET OBJECTID ':' TYPEID ASSIGN  expr let_init  IN expr
-    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $6, $9); }
-    | LET OBJECTID ':' TYPEID IN expr
-    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, no_expr(), $6); }
     | CASE expr OF case_list ESAC
     {@$ = @5; SET_NODELOC(@5); $$  =  typcase($2, $4); }
     | NEW TYPEID
@@ -322,6 +317,8 @@
     { @$ = @1; SET_NODELOC(@1); $$ = bool_const($1); }
     ;
 
+
+
 option_expr_list_semicdon:              /* empty */
    {  $$ = nil_Expressions(); }
    | expr ';' option_expr_list_semicdon
@@ -355,13 +352,39 @@ opt_expr_list:                      /*empty*/
    | error
    ;
 
+let_statement: LET OBJECTID ':' TYPEID IN expr
+    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, no_expr(), $6); }
+    | LET OBJECTID ':' TYPEID ASSIGN  expr IN expr
+    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $6, $8); }
+    | LET OBJECTID ':' TYPEID  ',' let_init
+    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $6, no_expr()); }
+    | LET OBJECTID ':' TYPEID ASSIGN  expr ',' let_init
+    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4,
+                                        $6,$8);
+    }
+;
 
-let_init:  OBJECTID ':' TYPEID
+let_init:
+
+OBJECTID ':' TYPEID
 {
         @$ = @3;
         SET_NODELOC(@3);
         $$ = let($1, $3, no_expr(), no_expr());
 }
+ | OBJECTID ':' TYPEID IN expr
+ {
+        @$ = @3;
+        SET_NODELOC(@3);
+        $$ = let($1, $3, no_expr(), $5);
+ }
+
+ | OBJECTID ':' TYPEID ASSIGN expr IN expr
+ {
+        @$ = @3;
+        SET_NODELOC(@3);
+        $$ = let($1, $3, $5, $7);
+ }
 | OBJECTID ':' TYPEID ASSIGN expr {
         @$ = @3;
         SET_NODELOC(@3);
