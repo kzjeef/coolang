@@ -254,8 +254,8 @@
 /* TODO.... */
     | LET OBJECTID ':' TYPEID opt_let_init_list IN expr
     { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $5, $7); }
-    | LET OBJECTID ':' TYPEID ASSIGN opt_let_init_list IN expr
-    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $6, $8); }
+    | LET OBJECTID ':' TYPEID ASSIGN  expr opt_let_init_list IN expr
+    { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $6, $9); }
     | LET OBJECTID ':' TYPEID IN expr
     { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, no_expr(), $6); }
     | CASE expr OF case_list ESAC
