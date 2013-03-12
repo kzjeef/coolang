@@ -256,11 +256,19 @@
     { @$ = @6; SET_NODELOC(@6); $$ = dispatch($1, $3,
                                               append_Expressions(single_Expressions($5), $6));  }
     | expr '.' OBJECTID '(' ')'
-    { @$ = @5; SET_NODELOC(@5); $$ = dispatch($1, $3, nil_Expressions());  }
+    { @$ = @3; SET_NODELOC(@3);
+            $$ = dispatch($1, $3, nil_Expressions());  }
     | OBJECTID '(' expr opt_expr_list ')'
-    { @$ = @4; SET_NODELOC(@4); $$ = dispatch(no_expr(), $1, append_Expressions(single_Expressions($3), $4)); }
+    {
+            @$ = @4; SET_NODELOC(@4);
+            $$ = dispatch(object(idtable.add_string("self")),
+                          $1,
+                          append_Expressions(single_Expressions($3), $4));
+    }
     | OBJECTID '('  ')'
-    { @$ = @1; SET_NODELOC(@1); $$ = dispatch(no_expr(), $1, nil_Expressions()); }
+                    { @$ = @3; SET_NODELOC(@3);
+                      $$ = dispatch(object(idtable.add_string("self")),
+                                           $1, nil_Expressions()); }
     | IF expr THEN expr ELSE expr FI
     { @$ = @7; SET_NODELOC(@7); $$ = cond($2, $4, $6);  }
     | WHILE expr LOOP expr POOL
