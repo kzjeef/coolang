@@ -11,11 +11,10 @@
   
   extern char *curr_filename;
   
-  
   /* Locations */
   #define YYLTYPE int              /* the type of locations */
   #define cool_yylloc curr_lineno  /* use the curr_lineno from the lexer
-  for the location of tokens */
+ /* for the location of tokens *\/ */
     
     extern int node_lineno;          /* set before constructing a tree node
     to whatever you want the line number
@@ -114,6 +113,7 @@
     problems (bison 1.25 and earlier start at 258, later versions -- at
     257)
     */
+
     %token CLASS 258 ELSE 259 FI 260 IF 261 IN 262 
     %token INHERITS 263 LET 264 LOOP 265 POOL 266 THEN 267 WHILE 268
     %token CASE 269 ESAC 270 OF 271 DARROW 272 NEW 273 ISVOID 274
@@ -128,6 +128,9 @@
     /* Complete the nonterminal list below, giving a type for the semantic
     value of each non terminal. (See section 3.6 in the bison 
     documentation for details). */
+
+    %left '+' '-'
+    %left '*' '/'
     
     /* Declare types for the grammar's non-terminals. */
     %type <program> program
@@ -156,17 +159,19 @@
     /* 
     Save the root of the abstract syntax tree in a global variable.
     */
-    program	: class_list	{ @$ = @1; ast_root = program($1); }
+    program	: class_list	{ @$ = @1;         SET_NODELOC(@1); ast_root = program($1); }
     ;
     
     class_list
     : class			/* single class */
     {
             @$ = @1;
+                    SET_NODELOC(@1);
             $$ = single_Classes($1);
     parse_results = $$; }
     | class_list class	/* several classes */
     { @$ = @2;
+                    SET_NODELOC(@2);
         $$ = append_Classes($1,single_Classes($2)); 
     parse_results = $$; }
     ;
@@ -197,9 +202,9 @@
     ;
 
     feature:  OBJECTID '(' opt_formal_list ')' ':' TYPEID '{' expr '}' ';'
-    {   @$ = @10; SET_NODELOC(@10); $$ = method($1, $3, $6, $8);  }
+    {   @$ = @8; SET_NODELOC(@8); $$ = method($1, $3, $6, $8);  }
     | OBJECTID ':' TYPEID ASSIGN expr ';'
-    {   @$ = @5; SET_NODELOC(@5);  $$ = attr($1, $3, $5);  }
+    {   @$ = @6; SET_NODELOC(@5);  $$ = attr($1, $3, $5);  }
     | OBJECTID ':' TYPEID ';'
     {   @$ = @4; SET_NODELOC(@4); $$ =  attr($1, $3, no_expr()); }
     ;
@@ -209,15 +214,20 @@
     ;
     opt_formal_list:                /* empty */
     { $$ = nil_Formals();  }
+    /* | formal */
+    /* { @$ = @1; SET_NODELOC(@1); $$ = single_Formals($1) } */
+    /* | opt_formal_list ',' formal */
+    /* { @$ = @3; SET_NODELOC(@3); $$ = append_Formals($1, single_Formals($3)); } */
     | formal_list
     ;
     formal_list: formal
     {  @$ = @1; SET_NODELOC(@1); $$ = single_Formals($1); }
     | formal_list ',' formal
-    {  @$ = @3; SET_NODELOC(@3); append_Formals($1, single_Formals($3)); }
+    {  @$ = @3; SET_NODELOC(@3); $$ = append_Formals($1, single_Formals($3)); }
     ;
 
-    expr : OBJECTID ASSIGN expr
+    expr :
+    OBJECTID ASSIGN expr
     {  @$ = @3; SET_NODELOC(@3); $$ = assign ($1, $3); }
     | expr '@' TYPEID '.' OBJECTID '(' expr opt_expr_list ')'
     { @$ = @8; SET_NODELOC(@8); $$ = static_dispatch($7, $3, $5, $8); }
@@ -237,7 +247,7 @@
     | LET OBJECTID ':' TYPEID let_init_list IN expr
     { @$ = @6; SET_NODELOC(@6);$$ = let($2, $4, $7, $5); }
     | CASE expr OF case_list ESAC
-    {@$ = @5; SET_NODELOC(@6); $$  =  typcase($2, $4); }
+    {@$ = @5; SET_NODELOC(@5); $$  =  typcase($2, $4); }
     | NEW TYPEID
     {  @$ = @2; SET_NODELOC(@2); $$ = new_($2); }
     | ISVOID expr
@@ -261,7 +271,7 @@
     | NOT expr
     {  @$ = @2; SET_NODELOC(@2); $$ = neg($2); }           /*TODO, this maybe wrong...*/
     | '(' expr ')'
-    {   @$ = @3;  SET_NODELOC(@3); $$ = comp($2); }
+    {   @$ = @3;  SET_NODELOC(@3); $$ = $2; }
     | OBJECTID
     {  @$ = @1; SET_NODELOC(@1); $$ = object($1); }
     | INT_CONST
@@ -270,7 +280,6 @@
     {  @$ = @1; SET_NODELOC(@1); $$ = string_const($1); }
     | BOOL_CONST
     { @$ = @1; SET_NODELOC(@1); $$ = bool_const($1); }
-    | 
     ;
 
 option_expr_list_semicdon:
