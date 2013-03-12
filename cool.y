@@ -176,6 +176,7 @@
         $$ = append_Classes($1,single_Classes($2)); 
         parse_results = $$;
     }
+    | error
     ;
     
     /* If no parent is specified, the class inherits from the Object class. */
@@ -215,6 +216,7 @@
     {   @$ = @5; SET_NODELOC(@5);  $$ = attr($1, $3, $5);  }
     | OBJECTID ':' TYPEID ';'
     {   @$ = @3; SET_NODELOC(@3); $$ =  attr($1, $3, no_expr()); }
+    |  feature:  OBJECTID '(' opt_formal_list ')' ':' TYPEID '{' error '}' ';'
     ;
 
     formal: OBJECTID ':' TYPEID 
@@ -222,12 +224,9 @@
     ;
     opt_formal_list:                /* empty */
     { $$ = nil_Formals();  }
-    /* | formal */
-    /* { @$ = @1; SET_NODELOC(@1); $$ = single_Formals($1) } */
-    /* | opt_formal_list ',' formal */
-    /* { @$ = @3; SET_NODELOC(@3); $$ = append_Formals($1, single_Formals($3)); } */
     | formal_list
     ;
+
     formal_list: formal
     {  @$ = @1; SET_NODELOC(@1); $$ = single_Formals($1); }
     | formal_list ',' formal
@@ -316,6 +315,7 @@ opt_expr_list:                      /*empty*/
    { @$ = @1; SET_NODELOC(@1); $$ = single_Cases($1); }
    | case_list case_
    { @$ = @2; SET_NODELOC(@2); $$ = append_Cases($1, single_Cases($2)); }
+   | error
    ;
 
 
