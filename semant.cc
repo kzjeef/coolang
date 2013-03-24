@@ -3,12 +3,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <typeinfo>
 #include "semant.h"
 #include "utilities.h"
 
 
 extern int semant_debug;
 extern char *curr_filename;
+
+#define DDD
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -83,10 +86,12 @@ static void initialize_constants(void)
 
 
 
-ClassTable::ClassTable(Classes classes) : semant_errors(0) , error_stream(cerr) {
+// Clases -> Classes_class -> list_node<Class_> --> Class__class : public tree_node:tree.h
 
-    /* Fill this in */
 
+ClassTable::ClassTable(Classes classes) : semant_errors(0) , error_stream(cerr), _root(classes) {
+    install_basic_classes();
+    first_pass();
 }
 
 void ClassTable::install_basic_classes() {
@@ -208,7 +213,64 @@ void ClassTable::install_basic_classes() {
 ostream& ClassTable::semant_error(Class_ c)
 {                                                             
     return semant_error(c->get_filename(),c);
-}    
+}
+
+void ClassTable::access_attr(attr_class *attr) {
+    cout << "Type: " << attr->get_type();
+}
+
+void ClassTable::access_features(Features fs)
+{
+    for (int i = fs->first(); fs->more(i); i = fs->next(i)) {
+        Feature_class * f = fs->nth(i);
+
+#ifdef DDD
+        cout << typeid(*f).name();
+#endif
+        
+        if (typeid(*f) == typeid(method_class)) {
+            // TODO
+        } else if (typeid(*f) == typeid(attr_class)) {
+            void ClassTable::access_attr(f);
+        }
+    }
+}
+
+void ClassTable::access_class(tree_node* node)
+{
+//    cout << "type: " << typeid(*node).name() << " line no: " << node->get_line_number() << endl;
+
+    if (typeid(*node) == typeid(class__class)) {
+        class__class *a = dynamic_cast<class__class *>(node);
+        access_features(a->get_features());
+#ifdef DDD
+        cout << "name: " << a->get_name() << " parent " << a->get_parent() << "features:" << a->get_features() << endl;
+#endif
+    }
+}
+
+void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
+{
+    for (int i = class_->first(); class_->more(i); i = class_->next(i)) {
+        Class_ node = class_->nth(i);
+#ifdef DDD
+        cout << class_->nth(i) << endl;
+#endif
+        access_class(class_->nth(i));
+    }
+}
+
+void ClassTable::first_pass() {
+#ifdef DDD
+    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+#endif
+    access_tree_node(_root, this);
+#ifdef DDD
+    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+#endif
+
+    return;
+}
 
 ostream& ClassTable::semant_error(Symbol filename, tree_node *t)
 {
@@ -221,7 +283,6 @@ ostream& ClassTable::semant_error()
     semant_errors++;                            
     return error_stream;
 } 
-
 
 
 /*   This is the entry point to the semantic checker.
@@ -237,6 +298,9 @@ ostream& ClassTable::semant_error()
      errors. Part 2) can be done in a second stage, when you want
      to build mycoolc.
  */
+
+
+
 void program_class::semant()
 {
     initialize_constants();
@@ -245,6 +309,7 @@ void program_class::semant()
     ClassTable *classtable = new ClassTable(classes);
 
     /* some semantic analysis code may go here */
+
 
     if (classtable->errors()) {
 	cerr << "Compilation halted due to static semantic errors." << endl;

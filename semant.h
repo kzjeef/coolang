@@ -24,10 +24,19 @@ private:
   int semant_errors;
   void install_basic_classes();
   ostream& error_stream;
+  Classes _root;
 
 public:
   ClassTable(Classes);
   int errors() { return semant_errors; }
+
+  void access_attr(attr_class *attr);
+  void access_features(Features fs);
+  void access_tree_node(Classes class_, ClassTable *classtable);
+  void access_class(tree_node *);
+  void first_pass();
+  
+  
   ostream& semant_error();
   ostream& semant_error(Class_ c);
   ostream& semant_error(Symbol filename, tree_node *t);
