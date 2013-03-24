@@ -90,6 +90,7 @@ static void initialize_constants(void)
 
 
 ClassTable::ClassTable(Classes classes) : semant_errors(0) , error_stream(cerr), _root(classes) {
+    _globalmap = new GlobalSymbolTable();
     install_basic_classes();
     first_pass();
 }
@@ -215,34 +216,63 @@ ostream& ClassTable::semant_error(Class_ c)
     return semant_error(c->get_filename(),c);
 }
 
-void ClassTable::access_attr(attr_class *attr) {
-    cout << "Type: " << attr->get_type();
-}
-
-void ClassTable::access_features(Features fs)
-{
-    for (int i = fs->first(); fs->more(i); i = fs->next(i)) {
-        Feature_class * f = fs->nth(i);
-
+void ClassTable::access_attr(Class_ c,
+                             attr_class *attr, ClassSymbolTable *t) {
 #ifdef DDD
-        cout << typeid(*f).name();
+    cout << "attr: init: " << attr->get_init() << endl;
 #endif
-        
-        if (typeid(*f) == typeid(method_class)) {
-            // TODO
-        } else if (typeid(*f) == typeid(attr_class)) {
-            void ClassTable::access_attr(f);
+    // Because this is a init, we should record the attr 's name and
+    // type in the type system.
+
+    if (t->probe(attr->get_name()) != NULL) {
+            semant_error(c);
+    } else {
+        Symbol type = attr->get_type_decl();
+        t->addid(attr->get_name(), type);
+    }
+
+    cout << "attr type: "  << attr->get_type_decl();
+    
+    if (attr->get_init()->get_type() == 0)
+        attr->get_init()->set_type(attr->get_type_decl());
+    
+ }
+
+    void ClassTable::access_features(Class_ c, Features fs, ClassSymbolTable *t)
+ {
+     for (int i = fs->first(); fs->more(i); i = fs->next(i)) {
+         Feature_class * f = fs->nth(i);
+
+ #ifdef DDD
+         cout << typeid(*f).name() << endl;
+ #endif
+
+         if (typeid(*f) == typeid(method_class)) {
+             // TODO
+         } else if (typeid(*f) == typeid(attr_class)) {
+             access_attr(c, dynamic_cast<attr_class *>(f), t);
         }
     }
 }
 
 void ClassTable::access_class(tree_node* node)
 {
-//    cout << "type: " << typeid(*node).name() << " line no: " << node->get_line_number() << endl;
-
     if (typeid(*node) == typeid(class__class)) {
+
         class__class *a = dynamic_cast<class__class *>(node);
-        access_features(a->get_features());
+        
+        // Create a symbol table for this class.
+        // If the class already exist, report an error.
+        if (_globalmap->lookup(a->get_name()) != NULL) {
+            semant_error(a->get_filename(), node);
+        } else {
+            _globalmap->addid(a->get_name(), new ClassSymbolTable());
+        }
+
+        ClassSymbolTable *t = _globalmap->probe(a->get_name());
+        t->enterscope();
+        access_features(a, a->get_features(), t);
+        
 #ifdef DDD
         cout << "name: " << a->get_name() << " parent " << a->get_parent() << "features:" << a->get_features() << endl;
 #endif
@@ -251,6 +281,7 @@ void ClassTable::access_class(tree_node* node)
 
 void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
 {
+    _globalmap->enterscope();
     for (int i = class_->first(); class_->more(i); i = class_->next(i)) {
         Class_ node = class_->nth(i);
 #ifdef DDD
@@ -258,6 +289,7 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
 #endif
         access_class(class_->nth(i));
     }
+    _globalmap->exitscope();
 }
 
 void ClassTable::first_pass() {
