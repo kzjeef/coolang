@@ -26,12 +26,28 @@ private:
   ostream& error_stream;
   Classes _root;
 
+  typedef Symbol Type;
+
+  /* Symbol table for current method. */
+  typedef SymbolTable<Symbol, Entry> MethodSymbolTable;
+  MethodSymbolTable *currMethodST;
+  
+  /* Symbol table for each of classes. */
+  typedef SymbolTable<Symbol, Entry> ClassSymbolTable;
+
+  /* Symbol table for the global classes. */
+  typedef SymbolTable<Symbol, ClassSymbolTable> GlobalSymbolTable;
+
+  GlobalSymbolTable *_globalmap;
+
 public:
   ClassTable(Classes);
   int errors() { return semant_errors; }
 
-  void access_attr(attr_class *attr);
-  void access_features(Features fs);
+  void access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t );
+  void access_method(Class_ c, method_class *m, ClassSymbolTable *t);
+  void access_attr(Class_ c, attr_class *attr, ClassSymbolTable *t);
+  void access_features(Class_ c, Features fs, ClassSymbolTable *t);
   void access_tree_node(Classes class_, ClassTable *classtable);
   void access_class(tree_node *);
   void first_pass();

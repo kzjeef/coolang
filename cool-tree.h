@@ -144,16 +144,6 @@ public:
 #endif
 };
 
-#define public_accessor(type, mem) type get_##mem() { return mem; }
-
-#define Class__SHARED_EXTRAS  \
-        public_accessor(Symbol, name)  \
-        public_accessor(Symbol, parent) \
-        public_accessor(Features, features)
-
-
-
-
 // define constructor - class_
 class class__class : public Class__class {
 protected:
@@ -205,8 +195,6 @@ public:
 #endif
 };
 
-#define Feature_SHARED_EXTRAS \
-        public_accessor(Expression, init)
 
 // define constructor - attr
 class attr_class : public Feature_class {

@@ -11,7 +11,7 @@
 extern int semant_debug;
 extern char *curr_filename;
 
-#define DDD
+//#define DDD
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -225,32 +225,140 @@ void ClassTable::access_attr(Class_ c,
     // type in the type system.
 
     if (t->probe(attr->get_name()) != NULL) {
-            semant_error(c);
+        semant_error(c);
     } else {
         Symbol type = attr->get_type_decl();
         t->addid(attr->get_name(), type);
     }
 
+#ifdef DDD
     cout << "attr type: "  << attr->get_type_decl();
-    
-    if (attr->get_init()->get_type() == 0)
+#endif
+
+    if (!attr->get_init()->is_no_expr())
         attr->get_init()->set_type(attr->get_type_decl());
     
- }
+}
 
-    void ClassTable::access_features(Class_ c, Features fs, ClassSymbolTable *t)
- {
-     for (int i = fs->first(); fs->more(i); i = fs->next(i)) {
-         Feature_class * f = fs->nth(i);
+inline int comp_two_type(Symbol a, Expression expr)
+{
+    if (expr->get_type() == NULL) {
+        cout << "compare with no_type..., symbol:" << a << endl;
+        return false;
+    }
+    return a->equal_string(expr->get_type()->get_string(), expr->get_type()->get_len());
+}
 
- #ifdef DDD
-         cout << typeid(*f).name() << endl;
- #endif
+void ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t )
+{
+    // Assign.
+    if (typeid(*e) == typeid(assign_class)) {
+        assign_class *ee = dynamic_cast<assign_class *>(e);
+        if (ee == 0) {
+            cout << "error" << endl;
+        }
 
-         if (typeid(*f) == typeid(method_class)) {
-             // TODO
-         } else if (typeid(*f) == typeid(attr_class)) {
-             access_attr(c, dynamic_cast<attr_class *>(f), t);
+        Symbol ty = t->lookup(ee->get_name());
+        if (ty == NULL) {
+            // not found define.
+            error_stream << "not found define:" << ee->get_name() << endl;
+            semant_error(c);
+            ee->set_type(Object);
+            return;
+        } else {
+            // Needs access the expr first.
+            access_expr(c, ee->get_expr(), t);
+            if (comp_two_type(ty, ee->get_expr()))
+                ee->set_type(ee->get_expr()->get_type());
+            else {
+                error_stream << "type not equal:" << ee->get_name() << endl;
+                semant_error(c);
+                ee->set_type(Object);
+            }
+            return;
+        }
+    }
+    // Static dispatch
+
+    // Dispatch
+    // Cond
+    // Loop
+    // typecase
+    // block
+    else if (typeid(*e) == typeid(block_class)) {
+        Expressions es = dynamic_cast<block_class *>(e)->get_body();
+        t->enterscope();
+        for (int i = es->first(); es->more(i); i = es->next(i))
+            access_expr(c, es->nth(i), t);
+        t->exitscope();
+    }
+    // Let
+    // plus
+    // sub_class
+    // mul_class
+    // divide class
+    // neg class
+    // lt class
+    // eq class
+    // leq class
+    // comp class
+    // int const class
+    else if (typeid(*e) == typeid(int_const_class)) {
+        e->set_type(Int);
+    }
+    // bool const class
+    // string const class
+    else if (typeid(*e) == typeid(string_const_class)) {
+        e->set_type(Str);
+    }
+    // new class
+    else if (typeid(*e) == typeid(new__class)) {
+        e->set_type(dynamic_cast<new__class *>(e)->get_type_name());
+    }
+    // isvoid class
+    // no expr
+    // object class
+}
+
+void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
+{
+    currMethodST = new MethodSymbolTable();
+    currMethodST->enterscope();
+
+    // process formals to init parameters.
+    if (m->get_formals()->len() != 0) {
+        Formals f = m->get_formals();
+        for (int i = f->first(); f->more(i); i = f->next(i)) {
+            formal_class *ff = dynamic_cast<formal_class *>(f->nth(i));
+            currMethodST->addid(ff->get_name(), ff->get_type_decl());
+        }
+    }
+
+    // Process the expr.
+    access_expr(c, m->get_expr(), t);
+
+    // Add method, set the return type to method's type.
+    // FIXME: the symtab of method is seprated with var.   
+//    t->addid(m->get_name(), );
+
+    currMethodST->exitscope();
+    delete currMethodST;
+}
+
+
+void ClassTable::access_features(Class_ c, Features fs, ClassSymbolTable *t)
+{
+    for (int i = fs->first(); fs->more(i); i = fs->next(i)) {
+        Feature_class * f = fs->nth(i);
+
+#ifdef DDD
+        cout << typeid(*f).name() << endl;
+#endif
+
+        if (typeid(*f) == typeid(method_class)) {
+            access_method(c, dynamic_cast<method_class *>(f), t);
+        } else if (typeid(*f) == typeid(attr_class)) {
+            access_attr(c, dynamic_cast<attr_class *>(f), t);
         }
     }
 }

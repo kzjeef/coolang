@@ -48,7 +48,7 @@ typedef Cases_class *Cases;
 virtual void semant() = 0;			\
 virtual void dump_with_types(ostream&, int) = 0; 
 
-
+#define public_accessor(type, mem) type get_##mem() { return mem; }
 
 #define program_EXTRAS                          \
 void semant();     				\
@@ -63,29 +63,55 @@ virtual void dump_with_types(ostream&,int) = 0;
 Symbol get_filename() { return filename; }             \
 void dump_with_types(ostream&,int);                    
 
+#define Class__SHARED_EXTRAS  \
+        public_accessor(Symbol, name)  \
+        public_accessor(Symbol, parent) \
+        public_accessor(Features, features)
 
 #define Feature_EXTRAS                                        \
 virtual void dump_with_types(ostream&,int) = 0; 
 
 
+
 #define Feature_SHARED_EXTRAS                                       \
-void dump_with_types(ostream&,int);    
+        public_accessor(Symbol, name)                               \
+        void dump_with_types(ostream&,int);
 
+#define attr_EXTRAS                             \
+        public_accessor(Expression, init)       \
+        public_accessor(Symbol, type_decl)
 
-
-
+#define method_EXTRAS                           \
+        public_accessor(Formals, formals)       \
+        public_accessor(Symbol,  return_type)   \
+        public_accessor(Expression, expr)
 
 #define Formal_EXTRAS                              \
 virtual void dump_with_types(ostream&,int) = 0;
 
+#define Formal_SHARED_EXTRAS                    \
+        public_accessor(Symbol, name)           \
+        public_accessor(Symbol, type_decl)
+
+#define no_expr_EXTRAS                          \
+        virtual bool is_no_expr() { return true; }
 
 #define formal_EXTRAS                           \
 void dump_with_types(ostream&,int);
+
+#define assign_EXTRAS                           \
+        public_accessor(Symbol,     name)       \
+        public_accessor(Expression, expr)
+
+#define new__EXTRAS                             \
+        public_accessor(Symbol, type_name)
 
 
 #define Case_EXTRAS                             \
 virtual void dump_with_types(ostream& ,int) = 0;
 
+#define block_EXTRAS                            \
+        public_accessor(Expressions,body)
 
 #define branch_EXTRAS                                   \
 void dump_with_types(ostream& ,int);
@@ -96,6 +122,7 @@ Symbol type;                                 \
 Symbol get_type() { return type; }           \
 Expression set_type(Symbol s) { type = s; return this; } \
 virtual void dump_with_types(ostream&,int) = 0;  \
+virtual bool is_no_expr() { return false; }      \
 void dump_type(ostream&, int);               \
 Expression_class() { type = (Symbol) NULL; }
 
