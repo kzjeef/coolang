@@ -84,7 +84,8 @@ virtual void dump_with_types(ostream&,int) = 0;
 #define method_EXTRAS                           \
         public_accessor(Formals, formals)       \
         public_accessor(Symbol,  return_type)   \
-        public_accessor(Expression, expr)
+        public_accessor(Expression, expr)       \
+        void set_return_type(Symbol t) { return_type = copy_Symbol(t); }
 
 #define Formal_EXTRAS                              \
 virtual void dump_with_types(ostream&,int) = 0;
@@ -102,6 +103,23 @@ void dump_with_types(ostream&,int);
 #define assign_EXTRAS                           \
         public_accessor(Symbol,     name)       \
         public_accessor(Expression, expr)
+
+#define plus_EXTRAS                             \
+        public_accessor(Expression, e1)         \
+        public_accessor(Expression, e2)
+
+#define sub_EXTRAS                             \
+        public_accessor(Expression, e1)         \
+        public_accessor(Expression, e2)
+
+#define mul_EXTRAS                             \
+        public_accessor(Expression, e1)         \
+        public_accessor(Expression, e2)
+
+#define divide_EXTRAS                             \
+        public_accessor(Expression, e1)         \
+        public_accessor(Expression, e2)
+
 
 #define new__EXTRAS                             \
         public_accessor(Symbol, type_name)

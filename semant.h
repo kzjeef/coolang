@@ -44,7 +44,7 @@ public:
   ClassTable(Classes);
   int errors() { return semant_errors; }
 
-  void access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t );
+  Symbol access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t );
   void access_method(Class_ c, method_class *m, ClassSymbolTable *t);
   void access_attr(Class_ c, attr_class *attr, ClassSymbolTable *t);
   void access_features(Class_ c, Features fs, ClassSymbolTable *t);

@@ -249,7 +249,7 @@ inline int comp_two_type(Symbol a, Expression expr)
     return a->equal_string(expr->get_type()->get_string(), expr->get_type()->get_len());
 }
 
-void ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t )
+Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t )
 {
     // Assign.
     if (typeid(*e) == typeid(assign_class)) {
@@ -264,18 +264,19 @@ void ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t 
             error_stream << "not found define:" << ee->get_name() << endl;
             semant_error(c);
             ee->set_type(Object);
-            return;
+            return Object;
         } else {
             // Needs access the expr first.
             access_expr(c, ee->get_expr(), t);
-            if (comp_two_type(ty, ee->get_expr()))
+            if (comp_two_type(ty, ee->get_expr())) {
                 ee->set_type(ee->get_expr()->get_type());
-            else {
+                return ee->get_expr()->get_type();
+            } else {
                 error_stream << "type not equal:" << ee->get_name() << endl;
                 semant_error(c);
                 ee->set_type(Object);
             }
-            return;
+            return Object;
         }
     }
     // Static dispatch
@@ -287,16 +288,39 @@ void ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t 
     // block
     else if (typeid(*e) == typeid(block_class)) {
         Expressions es = dynamic_cast<block_class *>(e)->get_body();
+        Symbol type = NULL; 
         t->enterscope();
         for (int i = es->first(); es->more(i); i = es->next(i))
-            access_expr(c, es->nth(i), t);
+            type = access_expr(c, es->nth(i), t);
         t->exitscope();
+        e->set_type(type);
+        return type;
     }
     // Let
-    // plus
+
+        // plus
     // sub_class
     // mul_class
     // divide class
+    else if (typeid(*e) == typeid(plus_class)
+             || typeid(*e) == typeid(sub_class)
+             || typeid(*e) == typeid(mul_class)
+             || typeid(*e) == typeid(divide_class)) {
+        plus_class *ee = dynamic_cast<plus_class *>(e);
+        access_expr(c, ee->get_e1(), t);
+        access_expr(c, ee->get_e1(), t);
+        // not same type, or not int is all error.
+        if (ee->get_e1()->get_type() != ee->get_e2()->get_type()
+            || comp_two_type(Int, ee->get_e2())) {
+            semant_error(c);
+            e->set_type(Object);
+            return Object;
+        } else {
+            e->set_type(ee->get_e2()->get_type());
+            return ee->get_e2()->get_type();
+        }
+    }
+
     // neg class
     // lt class
     // eq class
@@ -305,19 +329,26 @@ void ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t 
     // int const class
     else if (typeid(*e) == typeid(int_const_class)) {
         e->set_type(Int);
+        return Int;
     }
     // bool const class
     // string const class
     else if (typeid(*e) == typeid(string_const_class)) {
         e->set_type(Str);
+        return Str;
     }
     // new class
     else if (typeid(*e) == typeid(new__class)) {
-        e->set_type(dynamic_cast<new__class *>(e)->get_type_name());
+        Symbol tt = dynamic_cast<new__class *>(e)->get_type_name();
+        e->set_type(tt);
+        return tt;
     }
     // isvoid class
     // no expr
     // object class
+
+
+    return 0;
 }
 
 void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
@@ -335,7 +366,13 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
     }
 
     // Process the expr.
-    access_expr(c, m->get_expr(), t);
+    Symbol tt = access_expr(c, m->get_expr(), t);
+
+    // TODO: needs to check the result value is lum() of decleared return type.
+//    if (tt != NULL)
+//        m->set_return_type(tt);
+//    else
+//        m->set_return_type(Object);
 
     // Add method, set the return type to method's type.
     // FIXME: the symtab of method is seprated with var.   
