@@ -120,9 +120,70 @@ void dump_with_types(ostream&,int);
         public_accessor(Expression, e1)         \
         public_accessor(Expression, e2)
 
-
+#define neg_EXTRAS                              \
+        public_accessor(Expression, e1)
+        
 #define new__EXTRAS                             \
         public_accessor(Symbol, type_name)
+
+#define dispatch_EXTRAS                         \
+        public_accessor(Expression, expr)       \
+        public_accessor(Symbol, name)           \
+        public_accessor(Expressions, actual)
+
+#define static_dispatch_EXTRAS                  \
+        public_accessor(Expression, expr)       \
+        public_accessor(Symbol, type_name)      \
+        public_accessor(Symbol, name)           \
+        public_accessor(Expressions, actual)
+
+
+#define branch_EXTRAS                           \
+        public_accessor(Symbol, name)           \
+        public_accessor(Symbol, type_Decl)      \
+        public_accessor(Expression, expr)
+
+#define cond_EXTRAS                             \
+        public_accessor(Expression, pred)       \
+        public_accessor(Expression, then_exp)   \
+        public_accessor(Expression, else_exp)
+
+#define loop_EXTRAS                             \
+        public_accessor(Expression, pred)       \
+        public_accessor(Expression, body)
+
+#define typcase_EXTRAS                          \
+        public_accessor(Expression, expr)       \
+        public_accessor(Cases, cases)
+
+#define let_EXTRAS                              \
+        public_accessor(Symbol, identifier)     \
+        public_accessor(Symbol, type_decl)      \
+        public_accessor(Expression, init)       \
+        public_accessor(Expression, body)
+
+        
+#define lt_EXTRAS                               \
+        public_accessor(Expression, e1)         \
+        public_accessor(Expression, e2)
+
+#define eq_EXTRAS                               \
+        public_accessor(Expression, e1)         \
+                public_accessor(Expression, e2)
+
+#define leq_EXTRAS                              \
+        public_accessor(Expression, e1)         \
+        public_accessor(Expression, e2)
+
+#define comp_EXTRAS                             \
+        public_accessor(Expression, e1)
+
+#define bool_const_EXTRAS                       \
+        public_accessor(Boolean, val)
+
+#define isvoid_EXTRAS                           \
+        public_accessor(Expression, e1)
+
 
 
 #define Case_EXTRAS                             \

@@ -240,6 +240,14 @@ void ClassTable::access_attr(Class_ c,
     
 }
 
+inline int comp_two_type(Symbol a, Symbol b)
+{
+    if (a == NULL || b == NULL)
+        return false;
+
+    return a->equal_string(b->get_string(), b->get_len());
+}
+
 inline int comp_two_type(Symbol a, Expression expr)
 {
     if (expr->get_type() == NULL) {
@@ -282,6 +290,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     // Static dispatch
 
     // Dispatch
+    
     // Cond
     // Loop
     // typecase
@@ -298,7 +307,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     }
     // Let
 
-        // plus
+    // plus
     // sub_class
     // mul_class
     // divide class
@@ -311,7 +320,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         access_expr(c, ee->get_e1(), t);
         // not same type, or not int is all error.
         if (ee->get_e1()->get_type() != ee->get_e2()->get_type()
-            || comp_two_type(Int, ee->get_e2())) {
+            || !comp_two_type(Int, ee->get_e2())) {
             semant_error(c);
             e->set_type(Object);
             return Object;
@@ -322,16 +331,94 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     }
 
     // neg class
-    // lt class
+    else if (typeid(*e) == typeid(neg_class)) {
+        neg_class *ee = dynamic_cast<neg_class *>(e);
+        Symbol tt = access_expr(c, ee->get_e1(), t);
+        if (!comp_two_type(Int, ee->get_e1())) {
+            semant_error(c);
+            e->set_type(Object);
+            return Object;
+        } else {
+            e->set_type(tt);
+            return tt;
+        }
+    }
     // eq class
+    if( typeid(*e) == typeid(eq_class)) {
+        eq_class *ee = dynamic_cast<eq_class *>(e);
+        Symbol t1 = access_expr(c, ee->get_e1(), t);
+        Symbol t2 = access_expr(c, ee->get_e2(), t);
+
+        if (comp_two_type(t1, t2) &&
+            (comp_two_type(t1, Int)
+             || comp_two_type(t1, Str)
+             || comp_two_type(t1, Bool))) {
+            e->set_type(Bool);
+            return Bool;
+        } else {
+            semant_error(c);
+            e->set_type(Object);
+            return Object;
+        }
+    }
+
+    // lt class
+    else if (typeid(*e) == typeid(lt_class)) {
+        lt_class *ee = dynamic_cast<lt_class *>(e);
+        if (ee) {
+            Symbol t1 = access_expr(c, ee->get_e1(), t);
+            Symbol t2 = access_expr(c, ee->get_e2(), t);
+            if (!comp_two_type(Int, t1)
+                ||!comp_two_type(Int, t2)) {
+                semant_error(c);
+                e->set_type(Object);
+                return Object;
+            } else {
+                e->set_type(Bool);
+                return Bool;
+            }
+        }
     // leq class
+    } else if (typeid(*e) == typeid(leq_class)) {
+        leq_class *ee = dynamic_cast<leq_class *>(e);
+        if (ee) {
+            Symbol t1 = access_expr(c, ee->get_e1(), t);
+            Symbol t2 = access_expr(c, ee->get_e2(), t);
+            if (!comp_two_type(Int, t1)
+                ||!comp_two_type(Int, t2)) {
+                semant_error(c);
+                e->set_type(Object);
+                return Object;
+            } else {
+                e->set_type(Bool);
+                return Bool;
+            }
+        }
+    }
+    
     // comp class
+    else if (typeid(*e) == typeid(comp_class)) {
+        comp_class *ee = dynamic_cast<comp_class *>(e);
+        Symbol tt = access_expr(c, ee->get_e1(), t);
+        if (!comp_two_type(Bool, tt)) {
+            semant_error(c);
+            e->set_type(Object);
+            return Object;
+        } else {
+            e->set_type(Bool);
+            return Bool;
+        }
+    }
     // int const class
     else if (typeid(*e) == typeid(int_const_class)) {
         e->set_type(Int);
         return Int;
     }
     // bool const class
+    else if (typeid(*e) == typeid(bool_const_class)) {
+        e->set_type(Bool);
+        return Bool;
+    }
     // string const class
     else if (typeid(*e) == typeid(string_const_class)) {
         e->set_type(Str);
@@ -339,11 +426,21 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     }
     // new class
     else if (typeid(*e) == typeid(new__class)) {
+
         Symbol tt = dynamic_cast<new__class *>(e)->get_type_name();
+        if (comp_two_type(tt, SELF_TYPE)) {
+            // ... TODO... how to return SELF-TYPE_c?
+        }
         e->set_type(tt);
         return tt;
     }
     // isvoid class
+    else if (typeid(*e) == typeid(isvoid_class)) {
+        isvoid_class *ee = dynamic_cast<isvoid_class *>(e);
+        access_expr(c, ee->get_e1(), t);
+        e->set_type(Bool);
+        return Bool;
+    }
     // no expr
     // object class
 
