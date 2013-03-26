@@ -7,6 +7,10 @@
 #include "stringtab.h"
 #include "symtab.h"
 #include "list.h"
+#include <vector>
+
+using std::vector;
+
 
 #define TRUE 1
 #define FALSE 0
@@ -19,13 +23,89 @@ typedef ClassTable *ClassTableP;
 // you like: it is only here to provide a container for the supplied
 // methods.
 
+inline int comp_two_type(Symbol a, Symbol b)
+{
+    if (a == NULL || b == NULL)
+        return false;
+
+    return a->equal_string(b->get_string(), b->get_len());
+}
+
+
+class TreeNode;
+
+class TreeNode {
+        Symbol node_name;
+        vector<TreeNode *> *sibling;
+public:
+        typedef vector<TreeNode *>::iterator VSI;
+        
+        TreeNode(Symbol name) {
+                node_name = name;
+                sibling = new vector<TreeNode *>();
+        }
+        virtual ~TreeNode() {
+                delete sibling;
+        }
+
+        bool same_name(Symbol a) { return comp_two_type(a, node_name); }
+
+        TreeNode *get(TreeNode *n, Symbol a) {
+
+                if (comp_two_type(n->node_name, a)) {
+                        return n;
+                }
+                for (VSI i = n->sibling->begin();
+                     i != n->sibling->end();
+                     ++i) {
+                        TreeNode *nn = get(*i, a);
+                        if (nn != NULL) {
+                                return nn;
+                        }
+                }
+                return NULL;
+        }
+
+        void dump_sibling() {
+                for (VSI i = sibling->begin(); i != sibling->end(); i++)
+                        cout << "  sib: " << (*i)->node_name << endl;
+        }
+                
+
+        bool addchild(Symbol name, Symbol parent) {
+                TreeNode *p = get(this, parent);
+                if (p == NULL)
+                        return false;
+                TreeNode *n = get(this, name);
+                if (n != NULL) {
+                        return false;
+                }
+                p->sibling->push_back(new TreeNode(name));
+
+                return true;
+        }
+
+        /* Return if class A is a subclass of class B */
+        bool isSubClass(Symbol a, Symbol b) {
+                TreeNode *n = get(this, b);
+                if (n == NULL) {
+                        return false;
+                }
+                TreeNode *n2 = get(n, a);
+                return n2 != NULL;
+        }
+};
+
 class ClassTable {
+
+
+
 private:
   int semant_errors;
   void install_basic_classes();
   ostream& error_stream;
   Classes _root;
-
+  TreeNode *classTreeRoot;
   typedef Symbol Type;
 
   /* Symbol table for current method. */

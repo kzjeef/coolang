@@ -194,6 +194,24 @@ void ClassTable::install_basic_classes() {
 						      Str, 
 						      no_expr()))),
 	       filename);
+
+    int ret;
+    classTreeRoot = new TreeNode(Object);
+    ret = classTreeRoot->addchild(Str, Object);
+    ret |= classTreeRoot->addchild(Bool, Object);
+    ret |= classTreeRoot->addchild(Int, Object);
+    ret |= classTreeRoot->addchild(IO, Object);
+
+#define TREENODE_SELF_TEST
+#ifdef TREENODE_SELF_TEST
+    cout << "add result: " << ret << endl;
+    cout << "Str is Object subclass: " << classTreeRoot->isSubClass(Str, Object) << " expecting : True" << endl;
+    cout << "IO is Object subclass: " << classTreeRoot->isSubClass(IO, Object) << " expecting : True" << endl;
+    cout << "Object is IO subclass:" << classTreeRoot->isSubClass(Object, IO) << " expecting : False" << endl;
+    cout << "Str is IO subclass:" << classTreeRoot->isSubClass(Str, IO) << " expecting: False" << endl;
+#endif
+    
+    
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -240,13 +258,6 @@ void ClassTable::access_attr(Class_ c,
     
 }
 
-inline int comp_two_type(Symbol a, Symbol b)
-{
-    if (a == NULL || b == NULL)
-        return false;
-
-    return a->equal_string(b->get_string(), b->get_len());
-}
 
 inline int comp_two_type(Symbol a, Expression expr)
 {

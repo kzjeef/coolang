@@ -140,8 +140,10 @@ void dump_with_types(ostream&,int);
 
 #define branch_EXTRAS                           \
         public_accessor(Symbol, name)           \
-        public_accessor(Symbol, type_Decl)      \
-        public_accessor(Expression, expr)
+        public_accessor(Symbol, type_decl)      \
+        public_accessor(Expression, expr)       \
+        void dump_with_types(ostream& ,int);
+
 
 #define cond_EXTRAS                             \
         public_accessor(Expression, pred)       \
@@ -192,8 +194,6 @@ virtual void dump_with_types(ostream& ,int) = 0;
 #define block_EXTRAS                            \
         public_accessor(Expressions,body)
 
-#define branch_EXTRAS                                   \
-void dump_with_types(ostream& ,int);
 
 
 #define Expression_EXTRAS                    \
