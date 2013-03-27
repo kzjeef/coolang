@@ -202,7 +202,7 @@ void ClassTable::install_basic_classes() {
     ret |= classTreeRoot->addchild(Int, Object);
     ret |= classTreeRoot->addchild(IO, Object);
 
-#define TREENODE_SELF_TEST
+//#define TREENODE_SELF_TEST
 #ifdef TREENODE_SELF_TEST
     cout << "add result: " << ret << endl;
     cout << "Str is Object subclass: " << classTreeRoot->isSubClass(Str, Object) << " expecting : True" << endl;
@@ -258,6 +258,10 @@ void ClassTable::access_attr(Class_ c,
     
 }
 
+inline Symbol ClassTable::self_type_c(Class_ c) {
+    class__class *cc = dynamic_cast<class__class *>(c);
+    return cc->get_name();
+}
 
 inline int comp_two_type(Symbol a, Expression expr)
 {
@@ -299,12 +303,51 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         }
     }
     // Static dispatch
-
+    
     // Dispatch
     
     // Cond
+    else if (typeid(*e) == typeid(cond_class)) {
+        cond_class *ee = dynamic_cast<cond_class *>(e);
+        Symbol tt = access_expr(c, ee->get_pred(), t);
+        if (!comp_two_type(tt, Bool)) {
+            semant_error(c);
+            ee->set_type(Object);
+        }
+        Symbol t1 = access_expr(c, ee->get_then_exp(), t);
+        Symbol t2 = access_expr(c, ee->get_else_exp(), t);
+        Symbol tr = classTreeRoot->lct(t1, t2);
+        ee->set_type(tr);
+        return tr;
+    }
     // Loop
-    // typecase
+    else if (typeid(*e) == typeid(loop_class)) {
+        loop_class *ee = dynamic_cast<loop_class *>(e);
+        Expression pred = ee->get_pred();
+        Expression body = ee->get_body();
+        Symbol type = access_expr(c, pred, t);
+        if (!comp_two_type(type, Bool)) {
+            semant_error(c);
+            ee->set_type(Object);
+        }
+        access_expr(c, body, t);
+        ee->set_type(Object);
+        return Object;
+    }
+    // typcase
+    else if (typeid(*e) == typeid(typcase_class)) {
+        typcase_class *ee = dynamic_cast<typcase_class *>(e);
+        Symbol t1 = access_expr(c, ee->get_expr(), t);
+        Cases cs = ee->get_cases();
+        for (int i = cs->first(); cs->more(i); i = cs->next(i)) {
+            typcase_class *eee = dynamic_cast<typcase_class *>(cs->nth(i));
+            t1 = classTreeRoot->lct(t1,
+                                    access_expr(c, eee->get_expr(), t));
+        }
+
+        ee->set_type(t1);
+        return t1;
+    }
     // block
     else if (typeid(*e) == typeid(block_class)) {
         Expressions es = dynamic_cast<block_class *>(e)->get_body();
@@ -317,7 +360,34 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         return type;
     }
     // Let
+    else if (typeid(*e) == typeid(let_class)) {
+        let_class *ee = dynamic_cast<let_class *>(e);
+        // SELF
+        Symbol t0 = ee->get_type_decl();
+        if (comp_two_type(t0, SELF_TYPE)) {
+            // FIXME: I think it's implement is not right about SELF_TYPE_c
+            t0 = self_type_c(c);
+        }
+        Symbol t1 = access_expr(c, ee->get_init(), t);
 
+        t->enterscope();
+        t->addid(ee->get_identifier(), t0);
+        
+        if (t1) {
+            // t1 must be a sub class or equal
+            if (comp_two_type(t0, t1) || !classTreeRoot->isSubClass(t1, t0)) {
+                semant_error(c);
+                ee->set_type(Object);
+                return Object;
+            }
+
+        }
+
+        Symbol rt = access_expr(c, ee->get_body(), t);
+
+        t->exitscope();
+        return rt;
+    }
     // plus
     // sub_class
     // mul_class
@@ -389,7 +459,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
                 return Bool;
             }
         }
-    // leq class
+        // leq class
     } else if (typeid(*e) == typeid(leq_class)) {
         leq_class *ee = dynamic_cast<leq_class *>(e);
         if (ee) {

@@ -94,12 +94,16 @@ public:
                 TreeNode *n2 = get(n, a);
                 return n2 != NULL;
         }
+
+        /* Least common object in the tree. */
+        Symbol lct(Symbol t1, Symbol t2) {
+                /* TODO: Add this. dummy */
+
+                return t1;
+        }
 };
 
 class ClassTable {
-
-
-
 private:
   int semant_errors;
   void install_basic_classes();
@@ -124,6 +128,7 @@ public:
   ClassTable(Classes);
   int errors() { return semant_errors; }
 
+  Symbol self_type_c(Class_ c);
   Symbol access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t );
   void access_method(Class_ c, method_class *m, ClassSymbolTable *t);
   void access_attr(Class_ c, attr_class *attr, ClassSymbolTable *t);
