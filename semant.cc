@@ -230,9 +230,11 @@ void ClassTable::install_basic_classes() {
 ///////////////////////////////////////////////////////////////////
 
 ostream& ClassTable::semant_error(Class_ c)
-{                                                             
+{
+    abort();
     return semant_error(c->get_filename(),c);
 }
+
 
 void ClassTable::access_attr(Class_ c,
                              attr_class *attr, ClassSymbolTable *t) {
@@ -303,8 +305,50 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         }
     }
     // Static dispatch
-    
+    else if (typeid(*e) == typeid(static_dispatch_class)) {
+        static_dispatch_class *ee = dynamic_cast<static_dispatch_class *>(e);
+        Expressions es = ee->get_actual();
+
+        Symbol t0 = access_expr(c, ee->get_expr(), t);
+
+        if (comp_two_type(t0, ee->get_type_name()) || !classTreeRoot->isSubClass(t0, ee->get_type_name())) {
+            cout << "#static dispatch class not good.";
+            semant_error(c);
+            e->set_type(Object);
+            return Object;
+        }
+
+        // FIXME: here ignore some, like M(T0', f) = (T1', ..., Tn', Tn+1')
+        Symbol tn;
+        for (int i = es->first(); es->more(i); i = es->next(i)) {
+            tn = access_expr(c, es->nth(i), t);
+        }
+
+        if (comp_two_type(tn, SELF_TYPE))
+            tn = t0;
+
+        e->set_type(tn);
+        return tn;
+    }
     // Dispatch
+    else if (typeid(*e) == typeid(dispatch_class) ) {
+        dispatch_class *ee = dynamic_cast<dispatch_class *>(e);
+        Expressions es = ee->get_actual();
+
+        Symbol t0 = access_expr(c, ee->get_expr(), t); 
+
+        // FIXME: here ignore some, like M(T0', f) = (T1', ..., Tn', Tn+1')
+        Symbol tn;
+        for (int i = es->first(); es->more(i); i = es->next(i)) {
+            tn = access_expr(c, es->nth(i), t);
+        }
+
+        if (comp_two_type(tn, SELF_TYPE))
+            tn = t0;
+
+        e->set_type(tn);
+        return tn;
+    }
     
     // Cond
     else if (typeid(*e) == typeid(cond_class)) {
@@ -375,11 +419,25 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         
         if (t1) {
             // t1 must be a sub class or equal
-            if (comp_two_type(t0, t1) || !classTreeRoot->isSubClass(t1, t0)) {
-                semant_error(c);
-                ee->set_type(Object);
-                return Object;
-            }
+            /*
+class Main{main():Int{0};};
+
+class A {
+x:Int;
+
+f(x:A):String {"ab"};
+g(x:Bool):A {self};
+h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
+};----------------
+              
+             */
+            // t1 : bool t0: stirng.
+            // cout << "t1: " << t1 << "t0 " << t0 << endl;
+            // if (!comp_two_type(t0, t1) && !classTreeRoot->isSubClass(t1, t0)) {
+            //     semant_error(c);
+            //     ee->set_type(Object);
+            //     return Object;
+            // }
 
         }
 
@@ -524,6 +582,25 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     }
     // no expr
     // object class
+    else if (typeid(*e) == typeid(object_class)) {
+        object_class *ee = dynamic_cast<object_class *>(e);
+
+        if (comp_two_type(ee->get_name(), self)) {
+            e->set_type(SELF_TYPE);
+            return SELF_TYPE;
+        } else {
+            Symbol type = t->lookup(ee->get_name());
+            if (type == NULL) {
+                cout << "not find declear of : " << ee->get_name() << endl;
+                e->set_type(Object);
+                semant_error(c);
+                return Object;
+            }
+
+            e->set_type(type);
+            return type;
+        }
+    }
 
 
     return 0;
@@ -547,10 +624,21 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
     Symbol tt = access_expr(c, m->get_expr(), t);
 
     // TODO: needs to check the result value is lum() of decleared return type.
-//    if (tt != NULL)
-//        m->set_return_type(tt);
-//    else
-//        m->set_return_type(Object);
+    if (tt != NULL) {
+
+        if (comp_two_type(tt, SELF_TYPE)) {
+            m->set_return_type(dynamic_cast<class__class *>(c)->get_name());
+        } else if (!comp_two_type(tt, m->get_return_type())
+            && !classTreeRoot->isSubClass(tt, m->get_return_type())) {
+
+            cout << "two type not equal or less: a: " << tt
+                 << "return type: " << m->get_return_type() << endl;
+                semant_error(c);
+                m->set_return_type(Object);
+        } else 
+            m->set_return_type(m->get_return_type());
+    } else
+        m->set_return_type(Object);
 
     // Add method, set the return type to method's type.
     // FIXME: the symtab of method is seprated with var.   

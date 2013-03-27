@@ -194,6 +194,8 @@ virtual void dump_with_types(ostream& ,int) = 0;
 #define block_EXTRAS                            \
         public_accessor(Expressions,body)
 
+#define object_EXTRAS                           \
+        public_accessor(Symbol, name)
 
 
 #define Expression_EXTRAS                    \
