@@ -93,6 +93,7 @@ ClassTable::ClassTable(Classes classes) : semant_errors(0) , error_stream(cerr),
     _globalmap = new GlobalSymbolTable();
     install_basic_classes();
     first_pass();
+    second_pass();
 }
 
 void ClassTable::install_basic_classes() {
@@ -231,7 +232,7 @@ void ClassTable::install_basic_classes() {
 
 ostream& ClassTable::semant_error(Class_ c)
 {
-//    abort();
+    abort();
     return semant_error(c->get_filename(),c);
 }
 
@@ -244,7 +245,8 @@ void ClassTable::access_attr(Class_ c,
     // Because this is a init, we should record the attr 's name and
     // type in the type system.
 
-    if (t->probe(attr->get_name()) != NULL) {
+    
+    if (pass == 2 && t->probe(attr->get_name()) != NULL) {
         semant_error(c);
     } else {
         Symbol type = attr->get_type_decl();
@@ -284,7 +286,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         }
 
         Symbol ty = t->lookup(ee->get_name());
-        if (ty == NULL) {
+        if (pass == 2 && ty == NULL) {
             // not found define.
             error_stream << "not found define:" << ee->get_name() << endl;
             semant_error(c);
@@ -297,9 +299,11 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
                 ee->set_type(ee->get_expr()->get_type());
                 return ee->get_expr()->get_type();
             } else {
-                error_stream << "type not equal:" << ee->get_name() << endl;
-                semant_error(c);
-                ee->set_type(Object);
+                if (pass == 2) {
+                    error_stream << "type not equal:" << ee->get_name() << endl;
+                    semant_error(c);
+                    ee->set_type(Object);
+                }
             }
             return Object;
         }
@@ -311,7 +315,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
 
         Symbol t0 = access_expr(c, ee->get_expr(), t);
 
-        if (comp_two_type(t0, ee->get_type_name()) || !classTreeRoot->isSubClass(t0, ee->get_type_name())) {
+        if (pass == 2 && (comp_two_type(t0, ee->get_type_name()) || !classTreeRoot->isSubClass(t0, ee->get_type_name()))) {
             cout << "#static dispatch class not good.";
             semant_error(c);
             e->set_type(Object);
@@ -354,7 +358,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     else if (typeid(*e) == typeid(cond_class)) {
         cond_class *ee = dynamic_cast<cond_class *>(e);
         Symbol tt = access_expr(c, ee->get_pred(), t);
-        if (!comp_two_type(tt, Bool)) {
+        if (pass == 2 && !comp_two_type(tt, Bool)) {
             semant_error(c);
             ee->set_type(Object);
         }
@@ -370,7 +374,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         Expression pred = ee->get_pred();
         Expression body = ee->get_body();
         Symbol type = access_expr(c, pred, t);
-        if (!comp_two_type(type, Bool)) {
+        if (pass == 2 && !comp_two_type(type, Bool)) {
             semant_error(c);
             ee->set_type(Object);
         }
@@ -385,8 +389,9 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         Cases cs = ee->get_cases();
         for (int i = cs->first(); cs->more(i); i = cs->next(i)) {
             typcase_class *eee = dynamic_cast<typcase_class *>(cs->nth(i));
-            t1 = classTreeRoot->lct(t1,
-                                    access_expr(c, eee->get_expr(), t));
+            if (eee) 
+                t1 = classTreeRoot->lct(t1,
+                                        access_expr(c, eee->get_expr(), t));
         }
 
         ee->set_type(t1);
@@ -420,17 +425,17 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         if (t1) {
             // t1 must be a sub class or equal
             /*
-class Main{main():Int{0};};
+              class Main{main():Int{0};};
 
-class A {
-x:Int;
+              class A {
+              x:Int;
 
-f(x:A):String {"ab"};
-g(x:Bool):A {self};
-h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
-};----------------
+              f(x:A):String {"ab"};
+              g(x:Bool):A {self};
+              h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
+              };----------------
               
-             */
+            */
             // t1 : bool t0: stirng.
             // cout << "t1: " << t1 << "t0 " << t0 << endl;
             // if (!comp_two_type(t0, t1) && !classTreeRoot->isSubClass(t1, t0)) {
@@ -450,30 +455,81 @@ h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
     // sub_class
     // mul_class
     // divide class
-    else if (typeid(*e) == typeid(plus_class)
-             || typeid(*e) == typeid(sub_class)
-             || typeid(*e) == typeid(mul_class)
-             || typeid(*e) == typeid(divide_class)) {
+    else if (typeid(*e) == typeid(plus_class)) {
         plus_class *ee = dynamic_cast<plus_class *>(e);
-        access_expr(c, ee->get_e1(), t);
-        access_expr(c, ee->get_e1(), t);
+        Symbol t1 = access_expr(c, ee->get_e1(), t);
+        Symbol t2 = access_expr(c, ee->get_e2(), t);
         // not same type, or not int is all error.
-        if (ee->get_e1()->get_type() != ee->get_e2()->get_type()
-            || !comp_two_type(Int, ee->get_e2())) {
+        if (pass == 2
+            && (!comp_two_type(t1, t2)
+                || !comp_two_type(Int, t2))) {
             semant_error(c);
             e->set_type(Object);
             return Object;
         } else {
-            e->set_type(ee->get_e2()->get_type());
-            return ee->get_e2()->get_type();
+            e->set_type(t1);
+            return t1;
+        }
+    } else if (typeid(*e) == typeid(sub_class)) {
+        sub_class *ee = dynamic_cast<sub_class *>(e);
+        Symbol t1 = access_expr(c, ee->get_e1(), t);
+        Symbol t2 = access_expr(c, ee->get_e2(), t);
+        // not same type, or not int is all error.
+        if (pass == 2
+            && (!comp_two_type(t1, t2)
+                || !comp_two_type(Int, t2))) {
+            semant_error(c);
+            e->set_type(Object);
+            return Object;
+        } else {
+            e->set_type(t1);
+            return t1;
         }
     }
 
+    else if (typeid(*e) == typeid(mul_class)) {
+        mul_class *ee = dynamic_cast<mul_class *>(e);
+        Symbol t1 = access_expr(c, ee->get_e1(), t);
+        Symbol t2 = access_expr(c, ee->get_e2(), t);
+        // not same type, or not int is all error.
+
+        if (pass == 2
+            && (!comp_two_type(t1, t2)
+                || !comp_two_type(Int, t2))) {
+            semant_error(c);
+            e->set_type(Object);
+            return Object;
+        } else {
+            e->set_type(Int);
+            return t1;
+        }
+    }
+
+    else if (typeid(*e) == typeid(divide_class)) {
+        divide_class *ee = dynamic_cast<divide_class *>(e);
+        Symbol t1 = access_expr(c, ee->get_e1(), t);
+        Symbol t2 = access_expr(c, ee->get_e2(), t);
+        // not same type, or not int is all error.
+
+        if (pass == 2
+            && (!comp_two_type(t1, t2)
+                || !comp_two_type(Int, t2))) {
+            semant_error(c);
+            e->set_type(Object);
+            return Object;
+        } else {
+            e->set_type(Int);
+            return t1;
+        }
+    }
+
+    
     // neg class
     else if (typeid(*e) == typeid(neg_class)) {
         neg_class *ee = dynamic_cast<neg_class *>(e);
         Symbol tt = access_expr(c, ee->get_e1(), t);
-        if (!comp_two_type(Int, tt)) {
+        if (pass == 2 && !comp_two_type(Int, tt)) {
+            cout << "tt : " << tt <<endl;
             semant_error(c);
             e->set_type(Object);
             return Object;
@@ -494,7 +550,7 @@ h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
              || comp_two_type(t1, Bool))) {
             e->set_type(Bool);
             return Bool;
-        } else {
+        } else if (pass == 2) {
             semant_error(c);
             e->set_type(Object);
             return Object;
@@ -507,8 +563,8 @@ h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
         if (ee) {
             Symbol t1 = access_expr(c, ee->get_e1(), t);
             Symbol t2 = access_expr(c, ee->get_e2(), t);
-            if (!comp_two_type(Int, t1)
-                ||!comp_two_type(Int, t2)) {
+            if (pass == 2 && (!comp_two_type(Int, t1)
+                              ||!comp_two_type(Int, t2))) {
                 semant_error(c);
                 e->set_type(Object);
                 return Object;
@@ -523,8 +579,8 @@ h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
         if (ee) {
             Symbol t1 = access_expr(c, ee->get_e1(), t);
             Symbol t2 = access_expr(c, ee->get_e2(), t);
-            if (!comp_two_type(Int, t1)
-                ||!comp_two_type(Int, t2)) {
+            if (pass == 2 && (!comp_two_type(Int, t1)
+                              ||!comp_two_type(Int, t2))) {
                 semant_error(c);
                 e->set_type(Object);
                 return Object;
@@ -539,7 +595,7 @@ h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
     else if (typeid(*e) == typeid(comp_class)) {
         comp_class *ee = dynamic_cast<comp_class *>(e);
         Symbol tt = access_expr(c, ee->get_e1(), t);
-        if (!comp_two_type(Bool, tt)) {
+        if (pass == 2 && !comp_two_type(Bool, tt)) {
             semant_error(c);
             e->set_type(Object);
             return Object;
@@ -590,7 +646,7 @@ h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
             return SELF_TYPE;
         } else {
             Symbol type = t->lookup(ee->get_name());
-            if (type == NULL) {
+            if (pass == 2 && type == NULL) {
                 cout << "not find declear of : " << ee->get_name() << endl;
                 e->set_type(Object);
                 semant_error(c);
@@ -628,8 +684,8 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
 
         if (comp_two_type(tt, SELF_TYPE)) {
             m->set_return_type(dynamic_cast<class__class *>(c)->get_name());
-        } else if (!comp_two_type(tt, m->get_return_type())
-            && !classTreeRoot->isSubClass(tt, m->get_return_type())) {
+        } else if (pass == 2 && (!comp_two_type(tt, m->get_return_type())
+                    && !classTreeRoot->isSubClass(tt, m->get_return_type()))) {
 
             cout << "two type not equal or less: a: " << tt
                  << "return type: " << m->get_return_type() << endl;
@@ -714,7 +770,7 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
     for (vc::iterator i = failed_first.begin(); i != failed_first.end(); i++) {
         class__class *cc = dynamic_cast<class__class *>(*i);
         Symbol p = cc->get_parent() == NULL ? Object : cc->get_parent();
-        if (!classTreeRoot->addchild(cc->get_name(), p)) {
+        if (pass != 2 && !classTreeRoot->addchild(cc->get_name(), p)) {
 
 #ifdef DDD
             cout << "2th: class : " << cc->get_name() << " with parent: " << p
@@ -734,7 +790,12 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
     _globalmap->exitscope();
 }
 
+void ClassTable::second_pass() {
+    pass = 2;
+    access_tree_node(_root, this);
+}
 void ClassTable::first_pass() {
+    pass = 1;
 #ifdef DDD
     cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
 #endif

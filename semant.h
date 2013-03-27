@@ -107,6 +107,7 @@ public:
 class ClassTable {
 private:
   int semant_errors;
+  int pass;
   void install_basic_classes();
   ostream& error_stream;
   Classes _root;
@@ -137,6 +138,7 @@ public:
   void access_tree_node(Classes class_, ClassTable *classtable);
   void access_class(tree_node *);
   void first_pass();
+  void second_pass();
   
   
   ostream& semant_error();
