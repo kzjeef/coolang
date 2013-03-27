@@ -551,9 +551,12 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             e->set_type(Bool);
             return Bool;
         } else if (pass == 2) {
-            semant_error(c);
-            e->set_type(Object);
-            return Object;
+            // cout << "two type: " << t1 << " " << t2 << endl;
+            // semant_error(c);
+            // e->set_type(Object);
+            // return Object;
+            e->set_type(Bool);
+            return Bool;
         }
     }
 
@@ -681,7 +684,6 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
 
     // TODO: needs to check the result value is lum() of decleared return type.
     if (tt != NULL) {
-
         if (comp_two_type(tt, SELF_TYPE)) {
             m->set_return_type(dynamic_cast<class__class *>(c)->get_name());
         } else if (pass == 2 && (!comp_two_type(tt, m->get_return_type())
@@ -694,7 +696,7 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
         } else 
             m->set_return_type(m->get_return_type());
     } else
-        m->set_return_type(Object);
+        m->set_return_type(m->get_return_type());
 
     // Add method, set the return type to method's type.
     // FIXME: the symtab of method is seprated with var.   
