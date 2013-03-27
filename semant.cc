@@ -231,7 +231,7 @@ void ClassTable::install_basic_classes() {
 
 ostream& ClassTable::semant_error(Class_ c)
 {
-    abort();
+//    abort();
     return semant_error(c->get_filename(),c);
 }
 
@@ -473,7 +473,7 @@ h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
     else if (typeid(*e) == typeid(neg_class)) {
         neg_class *ee = dynamic_cast<neg_class *>(e);
         Symbol tt = access_expr(c, ee->get_e1(), t);
-        if (!comp_two_type(Int, ee->get_e1())) {
+        if (!comp_two_type(Int, tt)) {
             semant_error(c);
             e->set_type(Object);
             return Object;
