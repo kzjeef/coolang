@@ -605,6 +605,37 @@ void ClassTable::access_class(tree_node* node)
 void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
 {
     _globalmap->enterscope();
+
+    typedef vector<Class__class *> vc;
+    vc failed_first;
+
+    for (int i = class_->first(); class_->more(i); i = class_->next(i)) {
+        Class_ node = class_->nth(i);
+        class__class *cc = dynamic_cast<class__class *>(node);
+        Symbol p = cc->get_parent() == NULL ? Object : cc->get_parent();
+        if (!classTreeRoot->addchild(cc->get_name(), p)) {
+#ifdef DDD
+            cout << "class : " << cc->get_name() << " with parent: " << p
+                 << " failed to inherient" << endl;
+#endif
+            failed_first.push_back(cc);
+        }
+    }
+
+    // Give another chance to declear... but still not fix the issue, because it better do topologicsort...
+    for (vc::iterator i = failed_first.begin(); i != failed_first.end(); i++) {
+        class__class *cc = dynamic_cast<class__class *>(*i);
+        Symbol p = cc->get_parent() == NULL ? Object : cc->get_parent();
+        if (!classTreeRoot->addchild(cc->get_name(), p)) {
+
+#ifdef DDD
+            cout << "2th: class : " << cc->get_name() << " with parent: " << p
+                 << " failed to inherient" << endl;
+#endif
+            semant_error(*i);
+        }
+    }
+    
     for (int i = class_->first(); class_->more(i); i = class_->next(i)) {
         Class_ node = class_->nth(i);
 #ifdef DDD

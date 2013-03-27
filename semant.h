@@ -74,8 +74,9 @@ public:
 
         bool addchild(Symbol name, Symbol parent) {
                 TreeNode *p = get(this, parent);
-                if (p == NULL)
+                if (p == NULL) {
                         return false;
+                }
                 TreeNode *n = get(this, name);
                 if (n != NULL) {
                         return false;
