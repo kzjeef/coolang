@@ -421,8 +421,10 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             semant_error(c);
             ee->set_type(Object);
             return Object;
-        } else if (comp_two_type(function_ret, SELF_TYPE))
-            function_ret = call_object_type;
+        }
+
+        //else if (comp_two_type(function_ret, SELF_TYPE))
+          //            function_ret = call_object_type;
         
         e->set_type(function_ret);
         return function_ret;
@@ -461,15 +463,20 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         typcase_class *ee = dynamic_cast<typcase_class *>(e);
         Symbol t1 = access_expr(c, ee->get_expr(), t);
         Cases cs = ee->get_cases();
+        Symbol type;
         for (int i = cs->first(); cs->more(i); i = cs->next(i)) {
-            typcase_class *eee = dynamic_cast<typcase_class *>(cs->nth(i));
-            if (eee) 
-                t1 = classTreeRoot->lct(t1,
-                                        access_expr(c, eee->get_expr(), t));
+            branch_class *eee = dynamic_cast<branch_class *>(cs->nth(i));
+//            cout << "add " << eee->get_name() << " to type " << eee->get_type_decl() << endl;
+            t->enterscope();
+            t->addid(eee->get_name(), eee->get_type_decl());
+            type = access_expr(c, eee->get_expr(), t);
+            // type = classTreeRoot->lct(type,
+            //                           access_expr(c, eee->get_expr(), t));
+            t->exitscope();
         }
 
-        ee->set_type(t1);
-        return t1;
+        e->set_type(type);
+        return type;
     }
     // block
     else if (typeid(*e) == typeid(block_class)) {
@@ -835,7 +842,7 @@ void ClassTable::access_class(tree_node* node)
             t->enterscope();
         access_features(a, a->get_features(), t);
 
-        // Not exit scope... orther wise, not find the method...
+//        Not exit scope... orther wise, not find the method...
 //        if (pass == 2)
 //            t->exitscope();
         

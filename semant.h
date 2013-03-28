@@ -120,10 +120,12 @@ public:
         }
 
         /* Least common object in the tree. */
-        Symbol lct(Symbol t1, Symbol t2) {
-                /* TODO: Add this. dummy */
+        Symbol lct(TreeNode *root, Symbol t1, Symbol t2) {
 
-                return t1;
+                if (t1)
+                        return t1;
+                else
+                        return t2;
         }
 
         Symbol get_parent() {
