@@ -271,27 +271,29 @@ ostream& ClassTable::semant_error(Class_ c)
 
 void ClassTable::access_attr(Class_ c,
                              attr_class *attr, ClassSymbolTable *t) {
-#ifdef DDD
-    cout << "attr: init: " << attr->get_init() << endl;
-#endif
     // Because this is a init, we should record the attr 's name and
     // type in the type system.
-
     
     if (pass == 1 && t->probe(attr->get_name()) != NULL) {
         semant_error(c);
     } else {
         Symbol type = attr->get_type_decl();
         t->addid(attr->get_name(), type);
+        
     }
-
-#ifdef DDD
-    cout << "attr type: "  << attr->get_type_decl();
-#endif
-
-    if (!attr->get_init()->is_no_expr())
-        attr->get_init()->set_type(attr->get_type_decl());
-    
+    if (!attr->get_init()->is_no_expr()) {
+        Symbol initType = access_expr(c, attr->get_init(), t);
+        if (initType == 0) {
+//            cout << "expr is null ? " << endl;
+            return;
+        }
+        if (!comp_two_type(initType, SELF_TYPE)
+            && !comp_two_type(initType, attr->get_type_decl())
+            && !classTreeRoot->isSubClass(initType,
+                                          attr->get_type_decl())) {
+            semant_error(c);
+        }
+    }
 }
 
 inline Symbol ClassTable::self_type_c(Class_ c) {
@@ -428,12 +430,12 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         for (int i = es->first(); es->more(i); i = es->next(i)) {
             body_return_type = access_expr(c, es->nth(i), t);
         }
-
         Symbol call_object_type = access_expr(c, ee->get_expr(), t);
         Symbol call_object_type_copy = call_object_type;
 
-        if (comp_two_type(call_object_type, SELF_TYPE))
+        if (comp_two_type(call_object_type, SELF_TYPE)) {
             call_object_type = dynamic_cast<class__class *>(c)->get_name();
+        }
 
         ClassSymbolTable *typetable = _globalmap->lookup(call_object_type);
         Symbol function_ret = NULL;
@@ -739,11 +741,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     }
     // new class
     else if (typeid(*e) == typeid(new__class)) {
-
         Symbol tt = dynamic_cast<new__class *>(e)->get_type_name();
-        if (comp_two_type(tt, SELF_TYPE)) {
-            // ... TODO... how to return SELF-TYPE_c?
-        }
         e->set_type(tt);
         return tt;
     }
@@ -755,6 +753,9 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         return Bool;
     }
     // no expr
+    // else if (typeid(*e) == typeid(no_expr_class)) {
+    //     return Object;
+    // }
     // object class
     else if (typeid(*e) == typeid(object_class)) {
         object_class *ee = dynamic_cast<object_class *>(e);
@@ -777,6 +778,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     }
 
 
+//    cout << "Warnning: going to end of expr!!! e: " << typeid(*e).name() << endl;
     return 0;
 }
 
