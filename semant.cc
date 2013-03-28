@@ -295,12 +295,17 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         } else {
             // Needs access the expr first.
             access_expr(c, ee->get_expr(), t);
-            if (comp_two_type(ty, ee->get_expr())) {
+            if (comp_two_type(ty, ee->get_expr()) || classTreeRoot->isSubClass(ty, ee->get_expr()->get_type())) {
                 ee->set_type(ee->get_expr()->get_type());
                 return ee->get_expr()->get_type();
             } else {
                 if (pass == 2) {
-                    error_stream << "type not equal:" << ee->get_name() << endl;
+                    error_stream << c->get_filename() << ":"
+                                 << c->get_line_number() << ": "
+                                 << "Type " << ee->get_expr()->get_type()
+                                 << " of assigned expression does not conform to declared type "
+                                 << ty <<" of identifier "
+                                 << ee->get_name() << "." << endl;
                     semant_error(c);
                     ee->set_type(Object);
                 }
@@ -341,17 +346,24 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
 
         Symbol t0 = access_expr(c, ee->get_expr(), t); 
 
-        // FIXME: here ignore some, like M(T0', f) = (T1', ..., Tn', Tn+1')
-        Symbol tn;
-        for (int i = es->first(); es->more(i); i = es->next(i)) {
-            tn = access_expr(c, es->nth(i), t);
-        }
+        ClassSymbolTable *typetable = _globalmap->lookup(t0);
+        Symbol function_ret = NULL;
+        
+        if (typetable)
+            function_ret = typetable->lookup(ee->get_name());
 
-        if (comp_two_type(tn, SELF_TYPE))
-            tn = t0;
+        if (function_ret == 0 && pass == 2) {
+            cout << "cant find :" << t0 << " . " << ee->get_name() << " 's define" << endl; 
+            semant_error(c);
+            ee->set_type(Object);
+            return Object;
+        } else if (comp_two_type(function_ret, SELF_TYPE))
+            function_ret = t0;
 
-        e->set_type(tn);
-        return tn;
+        
+        
+        e->set_type(function_ret);
+        return function_ret;
     }
     
     // Cond
@@ -665,9 +677,20 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     return 0;
 }
 
+
+
 void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
 {
     currMethodST = new MethodSymbolTable();
+
+
+    // Add method to this type's symbol table.
+    t->addid(m->get_name(), m->get_return_type());
+#ifdef DDD
+    cout << "define class : " << dynamic_cast<class__class *>(c)->get_name() << " . " << m->get_name() << endl;
+#endif
+
+    t->enterscope();
     currMethodST->enterscope();
 
     // process formals to init parameters.
@@ -676,8 +699,11 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
         for (int i = f->first(); f->more(i); i = f->next(i)) {
             formal_class *ff = dynamic_cast<formal_class *>(f->nth(i));
             currMethodST->addid(ff->get_name(), ff->get_type_decl());
+            t->addid(ff->get_name(), ff->get_type_decl());
         }
     }
+
+
 
     // Process the expr.
     Symbol tt = access_expr(c, m->get_expr(), t);
@@ -686,11 +712,18 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
     if (tt != NULL) {
         if (comp_two_type(tt, SELF_TYPE)) {
             m->set_return_type(dynamic_cast<class__class *>(c)->get_name());
-        } else if (pass == 2 && (!comp_two_type(tt, m->get_return_type())
-                    && !classTreeRoot->isSubClass(tt, m->get_return_type()))) {
+        } else if (pass == 2
+                   && (!comp_two_type(tt, m->get_return_type())
+                       && !classTreeRoot->isSubClass(tt, m->get_return_type()))) {
 
-            cout << "two type not equal or less: a: " << tt
-                 << "return type: " << m->get_return_type() << endl;
+            // Here means, the method 's caller must have such method's class...
+            // class a {
+            //        method();
+            //  }
+            //  (new a).method(),
+            // the ^^^^ must be a class a...
+            cout << m->get_name() << " two type not equal or less: " << tt
+                 << " return type: " << m->get_return_type() << endl;
                 semant_error(c);
                 m->set_return_type(Object);
         } else 
@@ -703,6 +736,9 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
 //    t->addid(m->get_name(), );
 
     currMethodST->exitscope();
+    t->exitscope();
+
+    
     delete currMethodST;
 }
 
