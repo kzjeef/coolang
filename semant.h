@@ -35,16 +35,29 @@ inline int comp_two_type(Symbol a, Symbol b)
 class TreeNode;
 
 class TreeNode {
+private:
         Symbol node_name;
+        Symbol parent;
         vector<TreeNode *> *sibling;
+        TreeNode() {}
 public:
         typedef vector<TreeNode *>::iterator VSI;
         
-        TreeNode(Symbol name) {
+        TreeNode(Symbol name, Symbol pparent) {
                 node_name = name;
                 sibling = new vector<TreeNode *>();
+                parent = pparent;
+#ifdef DDD                
+                cout << "create node: " << name;
+                if (parent)
+                        cout << " parent : " << parent;
+                cout << endl;
+#endif
         }
         virtual ~TreeNode() {
+#ifdef DDD
+                cout <<  "deleting ndoe: " << node_name << endl;
+#endif
                 delete sibling;
         }
 
@@ -69,8 +82,19 @@ public:
         void dump_sibling() {
                 for (VSI i = sibling->begin(); i != sibling->end(); i++)
                         cout << "  sib: " << (*i)->node_name << endl;
-        }
                 
+        }
+
+        void dump_tree() {
+                cout << " \t\t " << node_name;
+                if (parent)
+                        cout << " parent : " << parent;
+                cout << "\n";
+                for (VSI i = sibling->begin(); i != sibling->end(); i++) {
+                        cout << "  sib: " << (*i)->node_name << endl;
+                        (*i)->dump_tree();
+                }
+        }
 
         bool addchild(Symbol name, Symbol parent) {
                 TreeNode *p = get(this, parent);
@@ -81,8 +105,7 @@ public:
                 if (n != NULL) {
                         return false;
                 }
-                p->sibling->push_back(new TreeNode(name));
-
+                p->sibling->push_back(new TreeNode(name, parent));
                 return true;
         }
 
@@ -102,7 +125,18 @@ public:
 
                 return t1;
         }
+
+        Symbol get_parent() {
+                return parent;
+        }
+
+        Symbol get_node_name() {
+                return node_name;
+        }
 };
+
+
+typedef SymbolTable<Symbol, Entry> ClassSymbolTable;
 
 class ClassTable {
 private:
@@ -119,7 +153,6 @@ private:
   MethodSymbolTable *currMethodST;
   
   /* Symbol table for each of classes. */
-  typedef SymbolTable<Symbol, Entry> ClassSymbolTable;
 
   /* Symbol table for the global classes. */
   typedef SymbolTable<Symbol, ClassSymbolTable> GlobalSymbolTable;
@@ -130,12 +163,14 @@ public:
   ClassTable(Classes);
   int errors() { return semant_errors; }
 
+  Symbol findSymbolToObject(Symbol node, Symbol method_or_attr);
   Symbol self_type_c(Class_ c);
   Symbol access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t );
   void access_method(Class_ c, method_class *m, ClassSymbolTable *t);
   void access_attr(Class_ c, attr_class *attr, ClassSymbolTable *t);
   void access_features(Class_ c, Features fs, ClassSymbolTable *t);
   void access_tree_node(Classes class_, ClassTable *classtable);
+  
   void access_class(tree_node *);
   void first_pass();
   void second_pass();

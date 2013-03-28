@@ -199,7 +199,7 @@ void ClassTable::install_basic_classes() {
 	       filename);
 
     int ret;
-    classTreeRoot = new TreeNode(Object);
+    classTreeRoot = new TreeNode(Object, NULL);
     ret = classTreeRoot->addchild(Str, Object);
     ret |= classTreeRoot->addchild(Bool, Object);
     ret |= classTreeRoot->addchild(Int, Object);
@@ -276,6 +276,29 @@ inline int comp_two_type(Symbol a, Expression expr)
         return false;
     }
     return a->equal_string(expr->get_type()->get_string(), expr->get_type()->get_len());
+}
+
+
+Symbol ClassTable::findSymbolToObject(Symbol node, Symbol method_or_attr) {
+    // 1. get parent.
+    // 2. check if parent is Object
+    //  if it's null or object, return NULL.
+    // if not object, check whether this have such symbol
+    // if have , return it's type,
+    //
+    Symbol t = NULL;
+    if (node == NULL)
+        return NULL;
+    if (comp_two_type(node, Object))
+        return NULL;
+    ClassSymbolTable *table = _globalmap->lookup(node);
+    if (table)
+        t = table->lookup(method_or_attr);
+    if (t)
+        return t;
+        
+    TreeNode *p = classTreeRoot->get(classTreeRoot, node);
+    return (findSymbolToObject(p->get_parent(), method_or_attr));
 }
 
 Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t )
@@ -381,10 +404,10 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
 
         ClassSymbolTable *typetable = _globalmap->lookup(call_object_type);
         Symbol function_ret = NULL;
+
+//        classTreeRoot->dump_tree();
         
-        if (typetable)
-            function_ret = typetable->lookup(ee->get_name());
-        
+        function_ret = findSymbolToObject(call_object_type, ee->get_name());
 
         if (function_ret == 0 && pass == 2) {
             cout << "dispatch: cant find :" << call_object_type << " . " << ee->get_name() << " 's define" << endl; 
@@ -491,6 +514,8 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         }
 
         Symbol rt = access_expr(c, ee->get_body(), t);
+
+        e->set_type(rt);
 
         t->exitscope();
         return rt;
@@ -734,9 +759,6 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
             t->addid(ff->get_name(), ff->get_type_decl());
         }
     }
-
-
-
     // Process the expr.
     Symbol tt = access_expr(c, m->get_expr(), t);
 
@@ -758,19 +780,13 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
                  << " return type: " << m->get_return_type() << endl;
                 semant_error(c);
                 m->set_return_type(Object);
-        } else 
-            m->set_return_type(m->get_return_type());
-    } else
-        m->set_return_type(m->get_return_type());
+        } 
+    }
 
-    // Add method, set the return type to method's type.
-    // FIXME: the symtab of method is seprated with var.   
-//    t->addid(m->get_name(), );
-
+    m->set_return_type(m->get_return_type());
+    
     currMethodST->exitscope();
     t->exitscope();
-
-    
     delete currMethodST;
 }
 
@@ -797,7 +813,7 @@ void ClassTable::access_class(tree_node* node)
     if (typeid(*node) == typeid(class__class)) {
 
         class__class *a = dynamic_cast<class__class *>(node);
-        
+
         // Create a symbol table for this class.
         // If the class already exist, report an error.
         if (pass == 1 && _globalmap->lookup(a->get_name()) != NULL) {
@@ -811,8 +827,9 @@ void ClassTable::access_class(tree_node* node)
             t->enterscope();
         access_features(a, a->get_features(), t);
 
-        if (pass == 2)
-            t->exitscope();
+        // Not exit scope... orther wise, not find the method...
+//        if (pass == 2)
+//            t->exitscope();
         
 #ifdef DDD
         cout << "name: " << a->get_name() << " parent " << a->get_parent() << "features:" << a->get_features() << endl;
@@ -826,16 +843,23 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
     typedef vector<Class__class *> vc;
     vc failed_first;
 
-    for (int i = class_->first(); class_->more(i); i = class_->next(i)) {
-        Class_ node = class_->nth(i);
-        class__class *cc = dynamic_cast<class__class *>(node);
-        Symbol p = cc->get_parent() == NULL ? Object : cc->get_parent();
-        if (!classTreeRoot->addchild(cc->get_name(), p)) {
+    if (pass == 1) {
+        for (int i = class_->first(); class_->more(i); i = class_->next(i)) {
+            Class_ node = class_->nth(i);
+            class__class *cc = dynamic_cast<class__class *>(node);
+            Symbol p = cc->get_parent() == NULL ? Object : cc->get_parent();
+
 #ifdef DDD
-            cout << "class : " << cc->get_name() << " with parent: " << p
-                 << " failed to inherient" << endl;
+            cout << "relation: class: " << cc->get_name() << " Parent: "
+                 << p << endl;
 #endif
-            failed_first.push_back(cc);
+            if (!classTreeRoot->addchild(cc->get_name(), p)) {
+#ifdef DDD
+                cout << "class : " << cc->get_name() << " with parent: " << p
+                     << " failed to inherient" << endl;
+#endif
+                failed_first.push_back(cc);
+            }
         }
     }
 
