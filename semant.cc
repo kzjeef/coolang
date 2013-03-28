@@ -430,6 +430,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         }
 
         Symbol call_object_type = access_expr(c, ee->get_expr(), t);
+        Symbol call_object_type_copy = call_object_type;
 
         if (comp_two_type(call_object_type, SELF_TYPE))
             call_object_type = dynamic_cast<class__class *>(c)->get_name();
@@ -441,8 +442,14 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         
         function_ret = findSymbolToObject(call_object_type, ee->get_name());
 
+        if (comp_two_type(function_ret, SELF_TYPE)
+            && !comp_two_type(call_object_type_copy, SELF_TYPE))
+            function_ret = call_object_type;
+
         if (function_ret == 0 && pass == 2) {
-            cout << "dispatch: cant find :" << call_object_type << " . " << ee->get_name() << " 's define" << endl; 
+            cout << "dispatch: cant find :"
+                 << call_object_type << " . "
+                 << ee->get_name() << " 's define" << endl; 
             semant_error(c);
             ee->set_type(Object);
             return Object;
@@ -801,15 +808,11 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
     // Process the expr.
     Symbol tt = access_expr(c, m->get_expr(), t);
 
-    // TODO: needs to check the result value is lum() of decleared return type.
-    if (tt != NULL) {
-        if (comp_two_type(tt, SELF_TYPE)) {
-//            m->set_return_type(dynamic_cast<class__class *>(c)->get_name());
-            ;
-        } else if (pass == 2
-                   && (!comp_two_type(tt, m->get_return_type())
-                       && !classTreeRoot->isSubClass(tt, m->get_return_type()))) {
-
+    if (tt != NULL && pass == 2) {
+        if (!comp_two_type(tt, SELF_TYPE)
+                 && !comp_two_type(tt, m->get_return_type())
+                 && !classTreeRoot->isSubClass(tt, m->get_return_type())) {
+            
             // Here means, the method 's caller must have such method's class...
             // class a {
             //        method();
