@@ -91,9 +91,11 @@ static void initialize_constants(void)
 
 ClassTable::ClassTable(Classes classes) : semant_errors(0) , error_stream(cerr), _root(classes) {
     _globalmap = new GlobalSymbolTable();
+    _globalmap->enterscope();
     install_basic_classes();
     first_pass();
     second_pass();
+    _globalmap->exitscope();
 }
 
 void ClassTable::install_basic_classes() {
@@ -246,7 +248,7 @@ void ClassTable::access_attr(Class_ c,
     // type in the type system.
 
     
-    if (pass == 2 && t->probe(attr->get_name()) != NULL) {
+    if (pass == 1 && t->probe(attr->get_name()) != NULL) {
         semant_error(c);
     } else {
         Symbol type = attr->get_type_decl();
@@ -315,45 +317,35 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     }
     // Static dispatch
     else if (typeid(*e) == typeid(static_dispatch_class)) {
+        /*
+          class static_dispatch_class : public Expression_class {
+          protected:
+          Expression expr;
+          Symbol type_name;
+          Symbol name;
+          Expressions actual;
+        */
         static_dispatch_class *ee = dynamic_cast<static_dispatch_class *>(e);
         Expressions es = ee->get_actual();
+        
+        Symbol body_return_type;
+
+        for (int i = es->first(); es->more(i); i = es->next(i)) {
+            body_return_type = access_expr(c, es->nth(i), t);
+        }
+
+        Symbol static_class_type_name = ee->get_type_name();
 
         Symbol t0 = access_expr(c, ee->get_expr(), t);
 
-        if (pass == 2 && (comp_two_type(t0, ee->get_type_name()) || !classTreeRoot->isSubClass(t0, ee->get_type_name()))) {
-            cout << "#static dispatch class not good.";
-            semant_error(c);
-            e->set_type(Object);
-            return Object;
-        }
-
-        // FIXME: here ignore some, like M(T0', f) = (T1', ..., Tn', Tn+1')
-        Symbol tn;
-        for (int i = es->first(); es->more(i); i = es->next(i)) {
-            tn = access_expr(c, es->nth(i), t);
-        }
-
-        if (comp_two_type(tn, SELF_TYPE))
-            tn = t0;
-
-        e->set_type(tn);
-        return tn;
-    }
-    // Dispatch
-    else if (typeid(*e) == typeid(dispatch_class) ) {
-        dispatch_class *ee = dynamic_cast<dispatch_class *>(e);
-        Expressions es = ee->get_actual();
-
-        Symbol t0 = access_expr(c, ee->get_expr(), t); 
-
-        ClassSymbolTable *typetable = _globalmap->lookup(t0);
+        ClassSymbolTable *typetable = _globalmap->lookup(static_class_type_name);
         Symbol function_ret = NULL;
         
         if (typetable)
             function_ret = typetable->lookup(ee->get_name());
 
         if (function_ret == 0 && pass == 2) {
-            cout << "cant find :" << t0 << " . " << ee->get_name() << " 's define" << endl; 
+            cout << "static_dispatch: cant find :" << t0 << " . " << ee->get_name() << " 's define" << endl; 
             semant_error(c);
             ee->set_type(Object);
             return Object;
@@ -361,6 +353,46 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             function_ret = t0;
 
         
+        e->set_type(function_ret);
+        return function_ret;
+    }
+    // Dispatch
+    else if (typeid(*e) == typeid(dispatch_class) ) {
+        /*
+          class dispatch_class : public Expression_class {
+          protected:
+          Expression expr;
+          Symbol name;
+          Expressions actual;
+         */
+        
+        dispatch_class *ee = dynamic_cast<dispatch_class *>(e);
+        Expressions es = ee->get_actual();
+        Symbol body_return_type;
+
+        for (int i = es->first(); es->more(i); i = es->next(i)) {
+            body_return_type = access_expr(c, es->nth(i), t);
+        }
+
+        Symbol call_object_type = access_expr(c, ee->get_expr(), t);
+
+        if (comp_two_type(call_object_type, SELF_TYPE))
+            call_object_type = dynamic_cast<class__class *>(c)->get_name();
+
+        ClassSymbolTable *typetable = _globalmap->lookup(call_object_type);
+        Symbol function_ret = NULL;
+        
+        if (typetable)
+            function_ret = typetable->lookup(ee->get_name());
+        
+
+        if (function_ret == 0 && pass == 2) {
+            cout << "dispatch: cant find :" << call_object_type << " . " << ee->get_name() << " 's define" << endl; 
+            semant_error(c);
+            ee->set_type(Object);
+            return Object;
+        } else if (comp_two_type(function_ret, SELF_TYPE))
+            function_ret = call_object_type;
         
         e->set_type(function_ret);
         return function_ret;
@@ -768,15 +800,19 @@ void ClassTable::access_class(tree_node* node)
         
         // Create a symbol table for this class.
         // If the class already exist, report an error.
-        if (_globalmap->lookup(a->get_name()) != NULL) {
+        if (pass == 1 && _globalmap->lookup(a->get_name()) != NULL) {
             semant_error(a->get_filename(), node);
-        } else {
+        } else if (pass == 1) {
             _globalmap->addid(a->get_name(), new ClassSymbolTable());
         }
 
         ClassSymbolTable *t = _globalmap->probe(a->get_name());
-        t->enterscope();
+        if (pass == 1)
+            t->enterscope();
         access_features(a, a->get_features(), t);
+
+        if (pass == 2)
+            t->exitscope();
         
 #ifdef DDD
         cout << "name: " << a->get_name() << " parent " << a->get_parent() << "features:" << a->get_features() << endl;
@@ -786,7 +822,6 @@ void ClassTable::access_class(tree_node* node)
 
 void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
 {
-    _globalmap->enterscope();
 
     typedef vector<Class__class *> vc;
     vc failed_first;
@@ -825,7 +860,6 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
 #endif
         access_class(class_->nth(i));
     }
-    _globalmap->exitscope();
 }
 
 void ClassTable::second_pass() {
@@ -853,7 +887,8 @@ ostream& ClassTable::semant_error(Symbol filename, tree_node *t)
 
 ostream& ClassTable::semant_error()                  
 {                                                 
-    semant_errors++;                            
+    semant_errors++;
+    abort();
     return error_stream;
 } 
 
