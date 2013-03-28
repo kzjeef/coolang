@@ -91,8 +91,9 @@ static void initialize_constants(void)
 
 ClassTable::ClassTable(Classes classes) : semant_errors(0) , error_stream(cerr), _root(classes) {
     _globalmap = new GlobalSymbolTable();
+    classTreeRoot = new TreeNode(Object, NULL);
     _globalmap->enterscope();
-    install_basic_classes();
+//    install_basic_classes();
     first_pass();
     second_pass();
     _globalmap->exitscope();
@@ -199,12 +200,16 @@ void ClassTable::install_basic_classes() {
 	       filename);
 
     int ret;
-    classTreeRoot = new TreeNode(Object, NULL);
     ret = classTreeRoot->addchild(Str, Object);
     ret |= classTreeRoot->addchild(Bool, Object);
     ret |= classTreeRoot->addchild(Int, Object);
     ret |= classTreeRoot->addchild(IO, Object);
 
+    access_class(Object_class);
+    access_class(IO_class);
+    access_class(Int_class);
+    access_class(Str_class);
+    
 //#define TREENODE_SELF_TEST
 #ifdef TREENODE_SELF_TEST
     cout << "add result: " << ret << endl;
@@ -289,8 +294,8 @@ Symbol ClassTable::findSymbolToObject(Symbol node, Symbol method_or_attr) {
     Symbol t = NULL;
     if (node == NULL)
         return NULL;
-    if (comp_two_type(node, Object))
-        return NULL;
+
+//    cout << "find " << method_or_attr << " in " << node << endl;
     ClassSymbolTable *table = _globalmap->lookup(node);
     if (table)
         t = table->lookup(method_or_attr);
@@ -298,6 +303,8 @@ Symbol ClassTable::findSymbolToObject(Symbol node, Symbol method_or_attr) {
         return t;
         
     TreeNode *p = classTreeRoot->get(classTreeRoot, node);
+    if (!p)
+        return NULL;
     return (findSymbolToObject(p->get_parent(), method_or_attr));
 }
 
@@ -819,6 +826,7 @@ void ClassTable::access_class(tree_node* node)
         if (pass == 1 && _globalmap->lookup(a->get_name()) != NULL) {
             semant_error(a->get_filename(), node);
         } else if (pass == 1) {
+//            cout << "add table : " << a->get_name() << endl;
             _globalmap->addid(a->get_name(), new ClassSymbolTable());
         }
 
@@ -863,16 +871,18 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
         }
     }
 
+    install_basic_classes();
+
     // Give another chance to declear... but still not fix the issue, because it better do topologicsort...
     for (vc::iterator i = failed_first.begin(); i != failed_first.end(); i++) {
         class__class *cc = dynamic_cast<class__class *>(*i);
         Symbol p = cc->get_parent() == NULL ? Object : cc->get_parent();
         if (pass != 2 && !classTreeRoot->addchild(cc->get_name(), p)) {
 
-#ifdef DDD
+//#ifdef DDD
             cout << "2th: class : " << cc->get_name() << " with parent: " << p
                  << " failed to inherient" << endl;
-#endif
+//#endif
             semant_error(*i);
         }
     }
@@ -892,14 +902,7 @@ void ClassTable::second_pass() {
 }
 void ClassTable::first_pass() {
     pass = 1;
-#ifdef DDD
-    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
-#endif
     access_tree_node(_root, this);
-#ifdef DDD
-    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
-#endif
-
     return;
 }
 
@@ -912,7 +915,7 @@ ostream& ClassTable::semant_error(Symbol filename, tree_node *t)
 ostream& ClassTable::semant_error()                  
 {                                                 
     semant_errors++;
-    abort();
+//    abort();
     return error_stream;
 } 
 
