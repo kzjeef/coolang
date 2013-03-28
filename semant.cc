@@ -85,6 +85,31 @@ static void initialize_constants(void)
 }
 
 
+/* Least common object in the tree. */
+Symbol TreeNode::lct(TreeNode *root, Symbol t1, Symbol t2)
+{
+
+                if (!t1)
+                        return t2;
+                TreeNode *t1node;
+                TreeNode *t2node;
+
+                if (comp_two_type(t1, Object) || comp_two_type(t2, Object))
+                        return Object;
+
+                t1node = root->get(this, t1);
+                do {
+                        t2node = t1node->get(this, t2);
+                        t1node = root->get(this, t1node->parent);
+                } while ( t2node == NULL
+                          && ((t1node = root->get(this, t1node->parent)) != NULL));
+
+                if (t1node == NULL)
+                        return NULL;
+                else
+                        return t1node->node_name;
+        }
+
 
 // Clases -> Classes_class -> list_node<Class_> --> Class__class : public tree_node:tree.h
 
@@ -440,7 +465,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         }
         Symbol t1 = access_expr(c, ee->get_then_exp(), t);
         Symbol t2 = access_expr(c, ee->get_else_exp(), t);
-        Symbol tr = classTreeRoot->lct(t1, t2);
+        Symbol tr = classTreeRoot->lct(classTreeRoot, t1, t2);
         ee->set_type(tr);
         return tr;
     }
@@ -463,15 +488,15 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         typcase_class *ee = dynamic_cast<typcase_class *>(e);
         Symbol t1 = access_expr(c, ee->get_expr(), t);
         Cases cs = ee->get_cases();
-        Symbol type;
+        Symbol type = NULL;
         for (int i = cs->first(); cs->more(i); i = cs->next(i)) {
             branch_class *eee = dynamic_cast<branch_class *>(cs->nth(i));
 //            cout << "add " << eee->get_name() << " to type " << eee->get_type_decl() << endl;
             t->enterscope();
             t->addid(eee->get_name(), eee->get_type_decl());
-            type = access_expr(c, eee->get_expr(), t);
-            // type = classTreeRoot->lct(type,
-            //                           access_expr(c, eee->get_expr(), t));
+//            type = access_expr(c, eee->get_expr(), t);
+            type = classTreeRoot->lct(classTreeRoot, type,
+                                       access_expr(c, eee->get_expr(), t));
             t->exitscope();
         }
 

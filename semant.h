@@ -42,7 +42,7 @@ private:
         TreeNode() {}
 public:
         typedef vector<TreeNode *>::iterator VSI;
-        
+        Symbol lct(TreeNode *root, Symbol t1, Symbol t2);
         TreeNode(Symbol name, Symbol pparent) {
                 node_name = name;
                 sibling = new vector<TreeNode *>();
@@ -119,14 +119,6 @@ public:
                 return n2 != NULL;
         }
 
-        /* Least common object in the tree. */
-        Symbol lct(TreeNode *root, Symbol t1, Symbol t2) {
-
-                if (t1)
-                        return t1;
-                else
-                        return t2;
-        }
 
         Symbol get_parent() {
                 return parent;
