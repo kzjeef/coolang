@@ -86,7 +86,7 @@ static void initialize_constants(void)
 
 
 /* Least common object in the tree. */
-Symbol TreeNode::lct(TreeNode *root, Symbol t1, Symbol t2)
+Symbol TreeNode::lub(TreeNode *root, Symbol t1, Symbol t2)
 {
 
                 if (!t1)
@@ -264,7 +264,7 @@ void ClassTable::install_basic_classes() {
 
 ostream& ClassTable::semant_error(Class_ c)
 {
-    abort();
+//    abort();
     return semant_error(c->get_filename(),c);
 }
 
@@ -465,7 +465,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         }
         Symbol t1 = access_expr(c, ee->get_then_exp(), t);
         Symbol t2 = access_expr(c, ee->get_else_exp(), t);
-        Symbol tr = classTreeRoot->lct(classTreeRoot, t1, t2);
+        Symbol tr = classTreeRoot->lub(classTreeRoot, t1, t2);
         ee->set_type(tr);
         return tr;
     }
@@ -495,7 +495,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             t->enterscope();
             t->addid(eee->get_name(), eee->get_type_decl());
 //            type = access_expr(c, eee->get_expr(), t);
-            type = classTreeRoot->lct(classTreeRoot, type,
+            type = classTreeRoot->lub(classTreeRoot, type,
                                        access_expr(c, eee->get_expr(), t));
             t->exitscope();
         }
@@ -804,7 +804,8 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
     // TODO: needs to check the result value is lum() of decleared return type.
     if (tt != NULL) {
         if (comp_two_type(tt, SELF_TYPE)) {
-            m->set_return_type(dynamic_cast<class__class *>(c)->get_name());
+//            m->set_return_type(dynamic_cast<class__class *>(c)->get_name());
+            ;
         } else if (pass == 2
                    && (!comp_two_type(tt, m->get_return_type())
                        && !classTreeRoot->isSubClass(tt, m->get_return_type()))) {

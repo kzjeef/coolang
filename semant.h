@@ -42,7 +42,7 @@ private:
         TreeNode() {}
 public:
         typedef vector<TreeNode *>::iterator VSI;
-        Symbol lct(TreeNode *root, Symbol t1, Symbol t2);
+        Symbol lub(TreeNode *root, Symbol t1, Symbol t2);
         TreeNode(Symbol name, Symbol pparent) {
                 node_name = name;
                 sibling = new vector<TreeNode *>();
