@@ -595,7 +595,8 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         if (pass == 2
             && (!comp_two_type(t1, t2)
                 || !comp_two_type(Int, t2))) {
-            semant_error(c);
+            semant_error_line(c) << "non-Int arguments: " << t1 << " + " << t2 << "\n";
+            semant_error();
             e->set_type(Object);
             return Object;
         } else {
