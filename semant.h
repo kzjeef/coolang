@@ -158,6 +158,7 @@ public:
   int errors() { return semant_errors; }
 
   Symbol findSymbolToObject(Symbol node, Symbol method_or_attr);
+  bool isInternalClassName(Symbol a);
   Symbol access_dispatch_and_static(Class_ c,
                                     static_dispatch_class *static_c,
                                     dispatch_class *dis_c, ClassSymbolTable *t);
@@ -176,7 +177,7 @@ public:
   ostream& semant_error();
   ostream& semant_error(Class_ c);
   ostream& semant_error(Class_ c, const char *errormsg);
-  void semant_error_line(Class_ c);
+  ostream& semant_error_line(Class_ c);
   ostream& semant_error(Symbol filename, tree_node *t);
 };
 

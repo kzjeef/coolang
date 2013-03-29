@@ -275,9 +275,10 @@ ostream& ClassTable::semant_error(Class_ c, const char *errormsg)
     return semant_error();
 }
 
-void ClassTable::semant_error_line(Class_ c) {
+ostream& ClassTable::semant_error_line(Class_ c) {
     error_stream << c->get_filename() << ":"
                  << c->get_line_number() << ": ";
+    return error_stream;
 }
 
 
@@ -682,10 +683,9 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             e->set_type(Bool);
             return Bool;
         } else if (pass == 2) {
-            // cout << "two type: " << t1 << " " << t2 << endl;
-            // semant_error(c);
-            // e->set_type(Object);
-            // return Object;
+            semant_error_line(c);
+            error_stream << "Illegal comparison with a basic type.\n";
+            semant_error();
             e->set_type(Bool);
             return Bool;
         }
@@ -881,6 +881,13 @@ void ClassTable::access_features(Class_ c, Features fs, ClassSymbolTable *t)
         access_method(c, *i, t);
 }
 
+bool ClassTable::isInternalClassName(Symbol a) {
+    return (strcmp(a->get_string(), "Object") == 0
+            || strcmp(a->get_string(), "Int") == 0
+            || strcmp(a->get_string(), "Bool") == 0
+            || strcmp(a->get_string(), "String") == 0);
+}
+
 void ClassTable::access_class(tree_node* node)
 {
     if (typeid(*node) == typeid(class__class)) {
@@ -890,7 +897,15 @@ void ClassTable::access_class(tree_node* node)
         // Create a symbol table for this class.
         // If the class already exist, report an error.
         if (pass == 1 && _globalmap->lookup(a->get_name()) != NULL) {
-            semant_error(a->get_filename(), node);
+            if (isInternalClassName(a->get_name())) {
+                semant_error_line(a);
+                error_stream << "Redefinition of basic class " << a->get_name() << ".\n";
+                semant_error();
+            } else {
+                semant_error_line(a);
+                error_stream << "Redefinition of class " << a->get_name() << ".\n";
+                semant_error();
+            }
         } else if (pass == 1) {
             _globalmap->addid(a->get_name(), new ClassSymbolTable());
         }
@@ -942,8 +957,17 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
     for (vc::iterator i = failed_first.begin(); i != failed_first.end(); i++) {
         class__class *cc = dynamic_cast<class__class *>(*i);
         Symbol p = cc->get_parent() == NULL ? Object : cc->get_parent();
-        if (pass != 2 && !classTreeRoot->addchild(cc->get_name(), p)) {
 
+        // Check whether inherient from basic class.
+        if (pass == 1 &&
+            isInternalClassName(cc->get_parent())) {
+            semant_error_line(cc) << "Class " << cc->get_name()
+                                  << " cannot inherit class "
+                                  << cc->get_parent() << ".\n";
+            semant_error();
+        }
+        
+        if (pass == 1 && !classTreeRoot->addchild(cc->get_name(), p)) {
 //#ifdef DDD
             cout << "2th: class : " << cc->get_name() << " with parent: " << p
                  << " failed to inherient" << endl;
