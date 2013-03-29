@@ -969,7 +969,6 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
 
     install_basic_classes();
 
-    // Give another chance to declear... but still not fix the issue, because it better do topologicsort...
     for (vc::iterator i = failed_first.begin(); i != failed_first.end(); i++) {
         class__class *cc = dynamic_cast<class__class *>(*i);
         Symbol p = cc->get_parent() == NULL ? Object : cc->get_parent();
@@ -981,6 +980,15 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
                                   << " cannot inherit class "
                                   << cc->get_parent() << ".\n";
             semant_error();
+        }
+
+        if (pass == 1)  {
+            if (!classTreeRoot->get(classTreeRoot, cc->get_parent())) {
+                semant_error_line(cc) << "Class " << cc->get_name()
+                                      << " inherits from an undefined class "
+                                      << cc->get_parent() << ".\n";
+                semant_error();
+            }
         }
         
         if (pass == 1 && !classTreeRoot->addchild(cc->get_name(), p)) {
