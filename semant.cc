@@ -119,6 +119,12 @@ ClassTable::ClassTable(Classes classes) : semant_errors(0) , error_stream(cerr),
 //    install_basic_classes();
     first_pass();
     second_pass();
+
+    if (_globalmap->lookup(Main) == NULL) {
+        error_stream << "Class Main is not defined.\n";
+        semant_error();
+    }
+    
     _globalmap->exitscope();
 }
 
