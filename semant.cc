@@ -229,6 +229,7 @@ void ClassTable::install_basic_classes() {
     ret |= classTreeRoot->addchild(IO, Object);
 
     access_class(Object_class);
+    access_class(Bool_class);
     access_class(IO_class);
     access_class(Int_class);
     access_class(Str_class);
@@ -681,19 +682,18 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         Symbol t1 = access_expr(c, ee->get_e1(), t);
         Symbol t2 = access_expr(c, ee->get_e2(), t);
 
-        if (comp_two_type(t1, t2) &&
-            (comp_two_type(t1, Int)
-             || comp_two_type(t1, Str)
-             || comp_two_type(t1, Bool))) {
-            e->set_type(Bool);
-            return Bool;
-        } else if (pass == 2) {
-            semant_error_line(c);
-            error_stream << "Illegal comparison with a basic type.\n";
-            semant_error();
-            e->set_type(Bool);
-            return Bool;
+        if (isInternalClassName(t2) || isInternalClassName(t1)) {
+            if (!comp_two_type(t1, t2)) {
+                semant_error_line(c);
+                error_stream << "Illegal comparison with a basic type.\n";
+                semant_error();
+                e->set_type(Bool);
+                return Bool;
+            }
         }
+        
+        e->set_type(Bool);
+        return Bool;
     }
 
     // lt class
@@ -761,6 +761,14 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     // new class
     else if (typeid(*e) == typeid(new__class)) {
         Symbol tt = dynamic_cast<new__class *>(e)->get_type_name();
+        if (!comp_two_type(tt, SELF_TYPE)
+            && _globalmap->lookup(tt) == NULL) {
+            if (pass == 2) {
+                semant_error_line(c) << "'new' used with undefined class "
+                                 << tt << endl;
+                semant_error();
+            }
+        }
         e->set_type(tt);
         return tt;
     }
@@ -819,6 +827,15 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
 #ifdef DDD
     cout << "define class : " << dynamic_cast<class__class *>(c)->get_name() << " . " << m->get_name() << endl;
 #endif
+
+    if (!comp_two_type(m->get_return_type(), SELF_TYPE)) {
+        if (pass == 2)
+            if (!_globalmap->lookup(m->get_return_type())) {
+                semant_error_line(c) << "Undefined return type " << m->get_return_type()
+                                    << " in method " << m->get_name() << ".\n";
+                semant_error();
+            }
+    }
 
     currMethodST->enterscope();
 
