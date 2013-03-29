@@ -790,10 +790,14 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             Symbol cls_name = dynamic_cast<class__class *>(c)->get_name();
             Symbol type = findSymbolToObject(cls_name, ee->get_name());
             if (pass == 2 && type == NULL) {
-                cout << " Class: " << dynamic_cast<class__class *>(c)->get_name()
-                     << " not find declear of : " << ee->get_name() << endl;
+
+                error_stream << c->get_filename() << ":"
+                             << c->get_line_number() << ": "
+                             << "Undeclared identifier "
+                             << ee->get_name()
+                             << "." << endl;
                 e->set_type(Object);
-                semant_error(c);
+                semant_error();
                 return Object;
             }
 
