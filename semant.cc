@@ -550,6 +550,15 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
     else if (typeid(*e) == typeid(let_class)) {
         let_class *ee = dynamic_cast<let_class *>(e);
         // SELF
+
+        if (strcmp(ee->get_identifier()->get_string(), "self") == 0) {
+            if (pass == 1) {
+                semant_error_line(c) << "'self' cannot be bound in a 'let' expression.\n";
+                semant_error();
+            }
+            return Object;
+        }
+            
         Symbol t0 = ee->get_type_decl();
         if (comp_two_type(t0, SELF_TYPE)) {
             // FIXME: I think it's implement is not right about SELF_TYPE_c
@@ -561,27 +570,18 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         t->addid(ee->get_identifier(), t0);
         
         if (t1) {
-            // t1 must be a sub class or equal
-            /*
-              class Main{main():Int{0};};
-
-              class A {
-              x:Int;
-
-              f(x:A):String {"ab"};
-              g(x:Bool):A {self};
-              h():Object{let x:String<-f(let x:Bool in g(x)) in x<-"ab"};
-              };----------------
-              
-            */
-            // t1 : bool t0: stirng.
-            // cout << "t1: " << t1 << "t0 " << t0 << endl;
-            // if (!comp_two_type(t0, t1) && !classTreeRoot->isSubClass(t1, t0)) {
-            //     semant_error(c);
-            //     ee->set_type(Object);
-            //     return Object;
-            // }
-
+            if (!comp_two_type(t0, t1)) {
+                if (pass == 2) {
+                    semant_error_line(c) << "Inferred type "
+                                         << t1
+                                         <<  " of initialization of "
+                                         << ee->get_identifier()
+                                         << " does not conform to identifier's declared type "
+                                         << t0 << ".\n";
+                    semant_error();
+                    return Object;
+                }
+            }
         }
 
         Symbol rt = access_expr(c, ee->get_body(), t);
