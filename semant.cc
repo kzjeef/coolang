@@ -441,6 +441,14 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             cout << "error" << endl;
         }
 
+        if (strcmp(ee->get_name()->get_string(), "self") == 0) {
+            if (pass == 1) {
+                semant_error_line(c) << "Cannot assign to 'self'.\n";
+                semant_error();
+            }
+            ee->set_type(Object);
+            return Object;
+        }
         Symbol class_type = dynamic_cast<class__class *>(c)->get_name();
         Symbol ty = findSymbolToObject(class_type, ee->get_name());
         if (ty == NULL) {
@@ -841,9 +849,9 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
             //  }
             //  (new a).method(),
             // the ^^^^ must be a class a...
-            cout << m->get_name() << " two type not equal or less: " << tt
-                 << " return type: " << m->get_return_type() << endl;
-                semant_error(c);
+            // cout << m->get_name() << " two type not equal or less: " << tt
+            //      << " return type: " << m->get_return_type() << endl;
+                // semant_error(c);
                 m->set_return_type(Object);
         } 
     }
