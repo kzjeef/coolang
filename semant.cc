@@ -266,11 +266,24 @@ ostream& ClassTable::semant_error(Class_ c)
     return semant_error(c->get_filename(),c);
 }
 
+ostream& ClassTable::semant_error(Class_ c, const char *errormsg)
+{
+    error_stream << c->get_filename() << ":"
+                 << c->get_line_number() << ": "
+                 << errormsg;
+
+    semant_error();
+}
+
 
 void ClassTable::access_attr(Class_ c,
                              attr_class *attr, ClassSymbolTable *t) {
     // Because this is a init, we should record the attr 's name and
     // type in the type system.
+
+
+    if (pass == 1 && strcmp(attr->get_name()->get_string(), "self") == 0)
+        semant_error(c, "'self' cannot be the name of an attribute.\n");
     
     if (t->probe(attr->get_name()) != NULL) {
         if (pass == 1)
@@ -963,6 +976,7 @@ void ClassTable::first_pass() {
     access_tree_node(_root, this);
     return;
 }
+
 
 ostream& ClassTable::semant_error(Symbol filename, tree_node *t)
 {
