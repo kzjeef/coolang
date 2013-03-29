@@ -1,5 +1,3 @@
-
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -393,23 +391,26 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
 
         Symbol static_class_type_name = ee->get_type_name();
 
-        Symbol t0 = access_expr(c, ee->get_expr(), t);
+
+        Symbol call_object_type = access_expr(c, ee->get_expr(), t);
+        Symbol call_object_type_copy = call_object_type;
 
         ClassSymbolTable *typetable = _globalmap->lookup(static_class_type_name);
         Symbol function_ret = NULL;
         
-        if (typetable)
-            function_ret = typetable->lookup(ee->get_name());
+        function_ret = findSymbolToObject(static_class_type_name, ee->get_name());
+
+        if (comp_two_type(function_ret, SELF_TYPE)
+            && !comp_two_type(call_object_type_copy, SELF_TYPE))
+            function_ret = call_object_type;
 
         if (function_ret == 0 && pass == 2) {
-            cout << "static_dispatch: cant find :" << t0 << " . " << ee->get_name() << " 's define" << endl; 
+            cout << "static_dispatch: cant find :" << call_object_type_copy << " . " << ee->get_name() << " 's define" << endl; 
             semant_error(c);
             ee->set_type(Object);
             return Object;
-        } else if (comp_two_type(function_ret, SELF_TYPE))
-            function_ret = t0;
+        }
 
-        
         e->set_type(function_ret);
         return function_ret;
     }
