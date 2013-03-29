@@ -374,8 +374,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         } else {
             // Needs access the expr first.
             Symbol init_return_type = access_expr(c, ee->get_expr(), t);
-            if (comp_two_type(ty, init_return_type)
-                || classTreeRoot->isSubClass(ty, init_return_type)) {
+            if (comp_two_type(ty, init_return_type)) {
                 ee->set_type(init_return_type);
                 return init_return_type;
             } else {
@@ -386,7 +385,7 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
                                  << " of assigned expression does not conform to declared type "
                                  << ty <<" of identifier "
                                  << ee->get_name() << "." << endl;
-                    semant_error(c);
+                    semant_error();
                     ee->set_type(Object);
                 }
             }
