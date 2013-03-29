@@ -159,6 +159,7 @@ public:
 
   Symbol findSymbolToObject(Symbol node, Symbol method_or_attr);
   bool isInternalClassName(Symbol a);
+  bool invalidParentClassName(Symbol a);
   Symbol access_dispatch_and_static(Class_ c,
                                     static_dispatch_class *static_c,
                                     dispatch_class *dis_c, ClassSymbolTable *t);

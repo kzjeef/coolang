@@ -897,6 +897,13 @@ bool ClassTable::isInternalClassName(Symbol a) {
             || strcmp(a->get_string(), "String") == 0);
 }
 
+bool ClassTable::invalidParentClassName(Symbol a) {
+    return (strcmp(a->get_string(), "Int") == 0
+            || strcmp(a->get_string(), "Bool") == 0
+            || strcmp(a->get_string(), "String") == 0);
+}
+
+
 void ClassTable::access_class(tree_node* node)
 {
     if (typeid(*node) == typeid(class__class)) {
@@ -911,8 +918,8 @@ void ClassTable::access_class(tree_node* node)
                 error_stream << "Redefinition of basic class " << a->get_name() << ".\n";
                 semant_error();
             } else {
-                semant_error_line(a);
-                error_stream << "Redefinition of class " << a->get_name() << ".\n";
+                semant_error_line(a)
+                    << "Class " << a->get_name() << " was previously defined.\n";
                 semant_error();
             }
         } else if (pass == 1) {
@@ -969,7 +976,7 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
 
         // Check whether inherient from basic class.
         if (pass == 1 &&
-            isInternalClassName(cc->get_parent())) {
+            invalidParentClassName(cc->get_parent())) {
             semant_error_line(cc) << "Class " << cc->get_name()
                                   << " cannot inherit class "
                                   << cc->get_parent() << ".\n";
@@ -977,11 +984,6 @@ void ClassTable::access_tree_node(Classes class_, ClassTable *classtable)
         }
         
         if (pass == 1 && !classTreeRoot->addchild(cc->get_name(), p)) {
-//#ifdef DDD
-            cout << "2th: class : " << cc->get_name() << " with parent: " << p
-                 << " failed to inherient" << endl;
-//#endif
-            semant_error(*i);
         }
     }
     
