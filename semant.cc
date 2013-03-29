@@ -560,10 +560,6 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         }
             
         Symbol t0 = ee->get_type_decl();
-        if (comp_two_type(t0, SELF_TYPE)) {
-            // FIXME: I think it's implement is not right about SELF_TYPE_c
-            t0 = self_type_c(c);
-        }
         Symbol t1 = access_expr(c, ee->get_init(), t);
 
         t->enterscope();
