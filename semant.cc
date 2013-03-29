@@ -364,6 +364,73 @@ Symbol ClassTable::findSymbolToObject(Symbol node, Symbol method_or_attr) {
     return (findSymbolToObject(p->get_parent(), method_or_attr));
 }
 
+Symbol ClassTable::access_dispatch_and_static(Class_ c, static_dispatch_class *static_c ,
+                                              dispatch_class *dis_c, ClassSymbolTable *t)
+{
+    Expressions es;
+    Symbol static_type = NULL;                 // Static type name for static dispatch.
+    Symbol call_object_type, call_object_type_copy;
+    Symbol body_return_type;
+    Expression  expr;
+    ClassSymbolTable *typetable;
+    Symbol function_ret = NULL;
+    Symbol curClassType = dynamic_cast<class__class *>(c)->get_name();
+    Symbol callableid = NULL;
+    Expression cure;
+
+    if (static_c) {
+        cure = static_c;
+        static_dispatch_class *ee = static_c;
+        es = ee->get_actual();
+        static_type = ee->get_type_name();
+        expr = ee->get_expr();
+        callableid = ee->get_name();
+    } else if (dis_c) {
+        cure = dis_c;
+        dispatch_class *ee = dis_c;
+        es = ee->get_actual();
+        expr = ee->get_expr();
+        callableid = ee->get_name();
+    }
+    
+    for (int i = es->first(); es->more(i); i = es->next(i)) {
+        body_return_type = access_expr(c, es->nth(i), t);
+    }
+
+    call_object_type = access_expr(c, expr, t);
+    call_object_type_copy = call_object_type;
+
+    if (comp_two_type(call_object_type, SELF_TYPE)) {
+        call_object_type = dynamic_cast<class__class *>(c)->get_name();
+    }
+
+    if (static_type) {
+        typetable = _globalmap->lookup(static_type);
+        function_ret = findSymbolToObject(static_type, callableid);
+    } else {
+        typetable = _globalmap->lookup(call_object_type);
+        function_ret = findSymbolToObject(call_object_type, callableid);
+    }
+
+    
+    if (comp_two_type(function_ret, SELF_TYPE)
+        && !comp_two_type(call_object_type_copy, SELF_TYPE))
+        function_ret = call_object_type;
+
+    if (function_ret == 0 && pass == 2) {
+
+        cout << "dispatch: cant find :"
+             << call_object_type << " . "
+             << callableid << " 's define" << endl; 
+        semant_error(c);
+        return Object;
+    }
+
+    cure->set_type(function_ret);
+    return function_ret;
+    
+}
+
 Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t )
 {
     // Assign.
@@ -404,101 +471,15 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             return Object;
         }
     }
-    // Static dispatch
+
+    // Static dispatch and dispatch.
     else if (typeid(*e) == typeid(static_dispatch_class)) {
-        /*
-          class static_dispatch_class : public Expression_class {
-          protected:
-          Expression expr;
-          Symbol type_name;
-          Symbol name;
-          Expressions actual;
-        */
         static_dispatch_class *ee = dynamic_cast<static_dispatch_class *>(e);
-        Expressions es = ee->get_actual();
-        
-        Symbol body_return_type;
-
-        for (int i = es->first(); es->more(i); i = es->next(i)) {
-            body_return_type = access_expr(c, es->nth(i), t);
-        }
-
-        Symbol static_class_type_name = ee->get_type_name();
-
-
-        Symbol call_object_type = access_expr(c, ee->get_expr(), t);
-        Symbol call_object_type_copy = call_object_type;
-
-        ClassSymbolTable *typetable = _globalmap->lookup(static_class_type_name);
-        Symbol function_ret = NULL;
-        
-        function_ret = findSymbolToObject(static_class_type_name, ee->get_name());
-
-        if (comp_two_type(function_ret, SELF_TYPE)
-            && !comp_two_type(call_object_type_copy, SELF_TYPE))
-            function_ret = call_object_type;
-
-        if (function_ret == 0 && pass == 2) {
-            cout << "static_dispatch: cant find :" << call_object_type_copy << " . " << ee->get_name() << " 's define" << endl; 
-            semant_error(c);
-            ee->set_type(Object);
-            return Object;
-        }
-
-        e->set_type(function_ret);
-        return function_ret;
-    }
-    // Dispatch
-    else if (typeid(*e) == typeid(dispatch_class) ) {
-        /*
-          class dispatch_class : public Expression_class {
-          protected:
-          Expression expr;
-          Symbol name;
-          Expressions actual;
-         */
-        
+        return access_dispatch_and_static(c, ee, NULL, t);
+    } else if (typeid(*e) == typeid(dispatch_class)) {
         dispatch_class *ee = dynamic_cast<dispatch_class *>(e);
-        Expressions es = ee->get_actual();
-        Symbol body_return_type;
-
-        for (int i = es->first(); es->more(i); i = es->next(i)) {
-            body_return_type = access_expr(c, es->nth(i), t);
-        }
-        Symbol call_object_type = access_expr(c, ee->get_expr(), t);
-        Symbol call_object_type_copy = call_object_type;
-
-        if (comp_two_type(call_object_type, SELF_TYPE)) {
-            call_object_type = dynamic_cast<class__class *>(c)->get_name();
-        }
-
-        ClassSymbolTable *typetable = _globalmap->lookup(call_object_type);
-        Symbol function_ret = NULL;
-
-//        classTreeRoot->dump_tree();
-        
-        function_ret = findSymbolToObject(call_object_type, ee->get_name());
-
-        if (comp_two_type(function_ret, SELF_TYPE)
-            && !comp_two_type(call_object_type_copy, SELF_TYPE))
-            function_ret = call_object_type;
-
-        if (function_ret == 0 && pass == 2) {
-            cout << "dispatch: cant find :"
-                 << call_object_type << " . "
-                 << ee->get_name() << " 's define" << endl; 
-            semant_error(c);
-            ee->set_type(Object);
-            return Object;
-        }
-
-        //else if (comp_two_type(function_ret, SELF_TYPE))
-          //            function_ret = call_object_type;
-        
-        e->set_type(function_ret);
-        return function_ret;
+        return access_dispatch_and_static(c, NULL, ee, t);
     }
-    
     // Cond
     else if (typeid(*e) == typeid(cond_class)) {
         cond_class *ee = dynamic_cast<cond_class *>(e);
@@ -535,10 +516,8 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
         Symbol type = NULL;
         for (int i = cs->first(); cs->more(i); i = cs->next(i)) {
             branch_class *eee = dynamic_cast<branch_class *>(cs->nth(i));
-//            cout << "add " << eee->get_name() << " to type " << eee->get_type_decl() << endl;
             t->enterscope();
             t->addid(eee->get_name(), eee->get_type_decl());
-//            type = access_expr(c, eee->get_expr(), t);
             type = classTreeRoot->lub(classTreeRoot, type,
                                        access_expr(c, eee->get_expr(), t));
             t->exitscope();

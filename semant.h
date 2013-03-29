@@ -158,6 +158,9 @@ public:
   int errors() { return semant_errors; }
 
   Symbol findSymbolToObject(Symbol node, Symbol method_or_attr);
+  Symbol access_dispatch_and_static(Class_ c,
+                                    static_dispatch_class *static_c,
+                                    dispatch_class *dis_c, ClassSymbolTable *t);
   Symbol self_type_c(Class_ c);
   Symbol access_expr(Class_ c, Expression_class *e, ClassSymbolTable *t );
   void access_method(Class_ c, method_class *m, ClassSymbolTable *t);
