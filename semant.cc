@@ -272,9 +272,15 @@ void ClassTable::access_attr(Class_ c,
     // Because this is a init, we should record the attr 's name and
     // type in the type system.
     
-    if (pass == 1 && t->probe(attr->get_name()) != NULL) {
-        semant_error(c);
+    if (t->probe(attr->get_name()) != NULL) {
+        if (pass == 1)
+            semant_error(c);
     } else {
+#ifdef DUMP_DECLEAR
+        cout << " Class: " << dynamic_cast<class__class *>(c)->get_name()
+             << "  declear attr: " << attr->get_name()
+             << "  type: " << attr->get_type_decl() << endl;
+#endif
         Symbol type = attr->get_type_decl();
         t->addid(attr->get_name(), type);
         
@@ -342,19 +348,23 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             cout << "error" << endl;
         }
 
-        Symbol ty = t->lookup(ee->get_name());
-        if (pass == 2 && ty == NULL) {
-            // not found define.
-            error_stream << "not found define:" << ee->get_name() << endl;
-            semant_error(c);
+        Symbol class_type = dynamic_cast<class__class *>(c)->get_name();
+        Symbol ty = findSymbolToObject(class_type, ee->get_name());
+        if (ty == NULL) {
+            if (pass == 2) {
+                // not found define.
+                error_stream << "not found define:" << ee->get_name() << endl;
+                semant_error(c);
+            }
             ee->set_type(Object);
             return Object;
         } else {
             // Needs access the expr first.
-            access_expr(c, ee->get_expr(), t);
-            if (comp_two_type(ty, ee->get_expr()) || classTreeRoot->isSubClass(ty, ee->get_expr()->get_type())) {
-                ee->set_type(ee->get_expr()->get_type());
-                return ee->get_expr()->get_type();
+            Symbol init_return_type = access_expr(c, ee->get_expr(), t);
+            if (comp_two_type(ty, init_return_type)
+                || classTreeRoot->isSubClass(ty, init_return_type)) {
+                ee->set_type(init_return_type);
+                return init_return_type;
             } else {
                 if (pass == 2) {
                     error_stream << c->get_filename() << ":"
@@ -765,9 +775,11 @@ Symbol ClassTable::access_expr(Class_ c, Expression_class *e, ClassSymbolTable *
             e->set_type(SELF_TYPE);
             return SELF_TYPE;
         } else {
-            Symbol type = t->lookup(ee->get_name());
+            Symbol cls_name = dynamic_cast<class__class *>(c)->get_name();
+            Symbol type = findSymbolToObject(cls_name, ee->get_name());
             if (pass == 2 && type == NULL) {
-                cout << "not find declear of : " << ee->get_name() << endl;
+                cout << " Class: " << dynamic_cast<class__class *>(c)->get_name()
+                     << " not find declear of : " << ee->get_name() << endl;
                 e->set_type(Object);
                 semant_error(c);
                 return Object;
@@ -796,7 +808,6 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
     cout << "define class : " << dynamic_cast<class__class *>(c)->get_name() << " . " << m->get_name() << endl;
 #endif
 
-    t->enterscope();
     currMethodST->enterscope();
 
     // process formals to init parameters.
@@ -832,13 +843,15 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
     m->set_return_type(m->get_return_type());
     
     currMethodST->exitscope();
-    t->exitscope();
     delete currMethodST;
 }
 
 
 void ClassTable::access_features(Class_ c, Features fs, ClassSymbolTable *t)
 {
+
+    vector<method_class *> methods;
+    typedef vector<method_class *>::iterator VMI;
     for (int i = fs->first(); fs->more(i); i = fs->next(i)) {
         Feature_class * f = fs->nth(i);
 
@@ -846,12 +859,19 @@ void ClassTable::access_features(Class_ c, Features fs, ClassSymbolTable *t)
         cout << typeid(*f).name() << endl;
 #endif
 
+//        if (pass == 1)
+//            t->enterscope();
         if (typeid(*f) == typeid(method_class)) {
-            access_method(c, dynamic_cast<method_class *>(f), t);
+            methods.push_back(dynamic_cast<method_class *>(f));
         } else if (typeid(*f) == typeid(attr_class)) {
             access_attr(c, dynamic_cast<attr_class *>(f), t);
         }
+//        if (pass == 2)
+//            t->exitscope();
     }
+
+    for (VMI i = methods.begin(); i != methods.end(); i++)
+        access_method(c, *i, t);
 }
 
 void ClassTable::access_class(tree_node* node)
@@ -865,7 +885,6 @@ void ClassTable::access_class(tree_node* node)
         if (pass == 1 && _globalmap->lookup(a->get_name()) != NULL) {
             semant_error(a->get_filename(), node);
         } else if (pass == 1) {
-//            cout << "add table : " << a->get_name() << endl;
             _globalmap->addid(a->get_name(), new ClassSymbolTable());
         }
 
