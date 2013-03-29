@@ -838,7 +838,13 @@ void ClassTable::access_method(Class_ c, method_class *m, ClassSymbolTable *t)
         if (!comp_two_type(tt, SELF_TYPE)
                  && !comp_two_type(tt, m->get_return_type())
                  && !classTreeRoot->isSubClass(tt, m->get_return_type())) {
-            
+
+            semant_error_line(c) << "Inferred return type " << tt
+                                 << " of method " << m->get_name()
+                                 << " does not conform to declared return type "
+                                 << m->get_return_type() << ".\n";
+            semant_error();
+
             // Here means, the method 's caller must have such method's class...
             // class a {
             //        method();
