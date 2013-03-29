@@ -272,8 +272,14 @@ ostream& ClassTable::semant_error(Class_ c, const char *errormsg)
                  << c->get_line_number() << ": "
                  << errormsg;
 
-    semant_error();
+    return semant_error();
 }
+
+void ClassTable::semant_error_line(Class_ c) {
+    error_stream << c->get_filename() << ":"
+                 << c->get_line_number() << ": ";
+}
+
 
 
 void ClassTable::access_attr(Class_ c,
@@ -281,9 +287,15 @@ void ClassTable::access_attr(Class_ c,
     // Because this is a init, we should record the attr 's name and
     // type in the type system.
 
-
     if (pass == 1 && strcmp(attr->get_name()->get_string(), "self") == 0)
         semant_error(c, "'self' cannot be the name of an attribute.\n");
+
+    if (pass == 1 && findSymbolToObject(dynamic_cast<class__class *>(c)->get_name(),
+                                        attr->get_name())) {
+            semant_error_line(c);
+            error_stream << "Attribute " << attr->get_name() << " is an attribute of an inherited class.\n";
+            semant_error();
+        }
     
     if (t->probe(attr->get_name()) != NULL) {
         if (pass == 1)

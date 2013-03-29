@@ -173,6 +173,7 @@ public:
   ostream& semant_error();
   ostream& semant_error(Class_ c);
   ostream& semant_error(Class_ c, const char *errormsg);
+  void semant_error_line(Class_ c);
   ostream& semant_error(Symbol filename, tree_node *t);
 };
 
